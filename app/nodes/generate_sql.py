@@ -1,6 +1,6 @@
 # app/nodes/generate_sql.py
 
-from app.infrastructure.llm import get_llm
+from app.infrastructure.llm import ainvoke_with_usage, get_llm
 
 
 SYSTEM_PROMPT = """
@@ -47,7 +47,8 @@ PREGUNTA DEL USUARIO:
 Genera la consulta PostgreSQL.
 """
 
-    response = await llm.ainvoke(
+    response = await ainvoke_with_usage(
+        llm,
         [
             {
                 "role": "system",
@@ -60,7 +61,7 @@ Genera la consulta PostgreSQL.
         ]
     )
 
-    sql = response.content.strip()
+    sql = response.strip()
 
     if sql.startswith("```"):
         sql = (

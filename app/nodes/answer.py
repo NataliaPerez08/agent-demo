@@ -1,4 +1,4 @@
-from app.infrastructure.llm import get_llm
+from app.infrastructure.llm import ainvoke_with_usage, get_llm
 
 
 SYSTEM_PROMPT = """
@@ -47,11 +47,12 @@ ANALISIS INTERNO:
 Redacta la respuesta final al usuario.
 """
 
-    response = await llm.ainvoke(
+    response = await ainvoke_with_usage(
+        llm,
         [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
         ]
     )
 
-    return {"answer": response.content.strip(), "success": True}
+    return {"answer": response.strip(), "success": True}

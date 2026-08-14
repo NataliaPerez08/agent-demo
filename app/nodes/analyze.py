@@ -1,6 +1,6 @@
 import json
 
-from app.infrastructure.llm import get_llm
+from app.infrastructure.llm import ainvoke_with_usage, get_llm
 
 
 SYSTEM_PROMPT = """
@@ -57,11 +57,12 @@ RESULTADOS (truncated={truncated}, rows={len(results)}):
 Genera el analisis.
 """
 
-    response = await llm.ainvoke(
+    response = await ainvoke_with_usage(
+        llm,
         [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
         ]
     )
 
-    return {"analysis": response.content.strip()}
+    return {"analysis": response.strip()}

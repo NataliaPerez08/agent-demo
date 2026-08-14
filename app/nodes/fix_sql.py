@@ -1,4 +1,4 @@
-from app.infrastructure.llm import get_llm
+from app.infrastructure.llm import ainvoke_with_usage, get_llm
 
 
 MAX_RETRIES = 2
@@ -71,14 +71,15 @@ ERROR:
 Corrige la consulta SQL.
 """
 
-    response = await llm.ainvoke(
+    response = await ainvoke_with_usage(
+        llm,
         [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
-        ]
+        ],
     )
 
-    sql = _strip_markdown(response.content)
+    sql = _strip_markdown(response)
 
     return {
         "generated_sql": sql,

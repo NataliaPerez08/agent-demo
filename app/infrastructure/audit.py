@@ -3,6 +3,7 @@ from app.infrastructure.postgres import agent_pool
 
 INSERT_AUDIT_SQL = """
 INSERT INTO analytics_query_log (
+    request_id,
     user_id,
     thread_id,
     question,
@@ -15,7 +16,7 @@ INSERT INTO analytics_query_log (
     retry_count
 )
 VALUES (
-    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
 )
 """
 
@@ -36,6 +37,7 @@ async def log_query(entry: dict) -> None:
                 await cursor.execute(
                     INSERT_AUDIT_SQL,
                     (
+                        entry.get("request_id"),
                         entry.get("user_id"),
                         entry.get("thread_id"),
                         entry.get("question"),

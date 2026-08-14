@@ -3,6 +3,8 @@ BEGIN;
 CREATE TABLE IF NOT EXISTS analytics_query_log (
     id BIGSERIAL PRIMARY KEY,
 
+    request_id VARCHAR(100),
+
     user_id VARCHAR(100) NOT NULL,
     thread_id VARCHAR(100) NOT NULL,
 
@@ -29,5 +31,8 @@ CREATE INDEX IF NOT EXISTS idx_audit_log_thread
 
 CREATE INDEX IF NOT EXISTS idx_audit_log_created_at
     ON analytics_query_log(created_at);
+
+CREATE INDEX IF NOT EXISTS idx_audit_log_request_id
+    ON analytics_query_log(request_id);
 
 COMMIT;

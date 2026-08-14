@@ -2,6 +2,7 @@ from langgraph.graph import END, START, StateGraph
 
 from app.agent.routing import route_after_execute, route_after_validate
 from app.agent.state import AnalystState
+from app.infrastructure.observability import timed
 from app.nodes.answer import generate_answer
 from app.nodes.analyze import analyze_results
 from app.nodes.execute_sql import execute_sql
@@ -16,13 +17,13 @@ def build_graph(checkpointer=None):
 
     graph = StateGraph(AnalystState)
 
-    graph.add_node("retrieve_schema", retrieve_schema)
-    graph.add_node("generate_sql", generate_sql)
-    graph.add_node("validate_sql", validate_sql)
-    graph.add_node("execute_sql", execute_sql)
-    graph.add_node("fix_sql", fix_sql)
-    graph.add_node("analyze_results", analyze_results)
-    graph.add_node("generate_answer", generate_answer)
+    graph.add_node("retrieve_schema", timed("schema")(retrieve_schema))
+    graph.add_node("generate_sql", timed("generate_sql")(generate_sql))
+    graph.add_node("validate_sql", timed("validate_sql")(validate_sql))
+    graph.add_node("execute_sql", timed("execute_sql")(execute_sql))
+    graph.add_node("fix_sql", timed("fix_sql")(fix_sql))
+    graph.add_node("analyze_results", timed("analyze")(analyze_results))
+    graph.add_node("generate_answer", timed("answer")(generate_answer))
     graph.add_node("failure", failure)
 
     graph.add_edge(START, "retrieve_schema")
