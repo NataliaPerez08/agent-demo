@@ -1,0 +1,157 @@
+database:
+  name: analytics
+  description: >
+    Base analítica de ventas utilizada por el Data Analyst Agent.
+
+business_rules:
+  revenue:
+    description: >
+      Revenue corresponde únicamente a órdenes cuyo status es completed.
+    source: orders.total
+    filter:
+      status: completed
+
+  active_customer:
+    description: >
+      Cliente con al menos una orden completed en los últimos 90 días.
+
+  average_order_value:
+    description: >
+      Revenue dividido entre número de órdenes completed.
+
+tables:
+
+  customers:
+    description: >
+      Clientes de la compañía.
+
+    primary_key:
+      - id
+
+    columns:
+
+      id:
+        type: bigint
+        description: Identificador único del cliente.
+
+      name:
+        type: varchar
+        description: Nombre comercial del cliente.
+
+      segment:
+        type: varchar
+        description: Segmento comercial.
+        allowed_values:
+          - smb
+          - mid_market
+          - enterprise
+
+      country:
+        type: varchar
+        description: País del cliente.
+
+      city:
+        type: varchar
+        description: Ciudad principal del cliente.
+
+      created_at:
+        type: timestamptz
+        description: Fecha de alta.
+
+
+  orders:
+    description: >
+      Órdenes realizadas por clientes.
+
+    primary_key:
+      - id
+
+    relationships:
+
+      customer_id:
+        references: customers.id
+        relationship: many_to_one
+
+    columns:
+
+      id:
+        type: bigint
+
+      customer_id:
+        type: bigint
+
+      status:
+        type: varchar
+        allowed_values:
+          - pending
+          - completed
+          - cancelled
+          - refunded
+
+      total:
+        type: numeric
+        description: >
+          Total monetario de la orden.
+
+      created_at:
+        type: timestamptz
+
+
+  products:
+    description: >
+      Catálogo de productos comercializados.
+
+    primary_key:
+      - id
+
+    columns:
+
+      id:
+        type: bigint
+
+      sku:
+        type: varchar
+
+      name:
+        type: varchar
+
+      category:
+        type: varchar
+
+      price:
+        type: numeric
+
+
+  order_items:
+    description: >
+      Líneas individuales de producto pertenecientes a una orden.
+
+    primary_key:
+      - id
+
+    relationships:
+
+      order_id:
+        references: orders.id
+        relationship: many_to_one
+
+      product_id:
+        references: products.id
+        relationship: many_to_one
+
+    columns:
+
+      id:
+        type: bigint
+
+      order_id:
+        type: bigint
+
+      product_id:
+        type: bigint
+
+      quantity:
+        type: integer
+
+      unit_price:
+        type: numeric

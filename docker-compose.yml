@@ -27,19 +27,6 @@ services:
       - "5432:5432"
     volumes:
       - agent_postgres_data:/var/lib/postgresql/data
-
-  analytics:
-    image: postgres:16
-    container_name: analyst-data-db
-    environment:
-      POSTGRES_DB: analytics
-      POSTGRES_USER: analyst
-      POSTGRES_PASSWORD: analyst
-    ports:
-      - "5433:5432"
-    volumes:
-      - analytics_postgres_data:/var/lib/postgresql/data
-
   redis:
     image: redis:7
     container_name: analyst-redis
@@ -60,6 +47,26 @@ services:
       - ./litellm/config.yaml:/app/config.yaml
     env_file:
       - .env
+
+  analytics:
+    image: postgres:16
+    container_name: analyst-data-db
+
+    environment:
+      POSTGRES_DB: analytics
+      POSTGRES_USER: analytics_admin
+      POSTGRES_PASSWORD: analytics_admin
+
+    ports:
+      - "5433:5432"
+
+    volumes:
+      - analytics_postgres_data:/var/lib/postgresql/data
+
+      - ./database/analytics/ddl/001_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql
+      - ./database/analytics/ddl/002_indexes.sql:/docker-entrypoint-initdb.d/002_indexes.sql
+      - ./database/analytics/ddl/003_views.sql:/docker-entrypoint-initdb.d/003_views.sql
+      - ./database/analytics/dml/001_seed.sql:/docker-entrypoint-initdb.d/004_seed.sql
 
 volumes:
   agent_postgres_data:
