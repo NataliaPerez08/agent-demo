@@ -46,25 +46,29 @@ SELECT
     p.category,
 
     COALESCE(
-        SUM(oi.quantity),
+        SUM(s.quantity),
         0
     ) AS units_sold,
 
     COALESCE(
         SUM(
-            oi.quantity * oi.unit_price
+            s.quantity * s.unit_price
         ),
         0
     ) AS revenue
 
 FROM products p
 
-LEFT JOIN order_items oi
-    ON oi.product_id = p.id
-
-LEFT JOIN orders o
-    ON o.id = oi.order_id
-    AND o.status = 'completed'
+LEFT JOIN (
+    SELECT
+        oi.product_id,
+        oi.quantity,
+        oi.unit_price
+    FROM order_items oi
+    JOIN completed_orders co
+        ON co.id = oi.order_id
+) s
+    ON s.product_id = p.id
 
 GROUP BY
     p.id,

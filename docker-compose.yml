@@ -66,7 +66,8 @@ services:
       - ./database/analytics/ddl/001_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql
       - ./database/analytics/ddl/002_indexes.sql:/docker-entrypoint-initdb.d/002_indexes.sql
       - ./database/analytics/ddl/003_views.sql:/docker-entrypoint-initdb.d/003_views.sql
-      - ./database/analytics/dml/001_seed.sql:/docker-entrypoint-initdb.d/004_seed.sql
+      - ./database/analytics/ddl/004_agent_role.sql:/docker-entrypoint-initdb.d/004_agent_role.sql
+      - ./database/analytics/dml/001_seed.sql:/docker-entrypoint-initdb.d/005_seed.sql
 
 volumes:
   agent_postgres_data:

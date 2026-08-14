@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
+from app.api.routes import router
 from app.infrastructure.postgres import open_database, close_database
 
 @asynccontextmanager
@@ -14,6 +15,9 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+app.include_router(router)
+
 
 @app.get("/health")
 async def health_check():

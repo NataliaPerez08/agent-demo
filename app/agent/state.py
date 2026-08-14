@@ -17,6 +17,10 @@ class AnalystState(TypedDict, total=False):
 
     query_result: list[dict[str, Any]]
 
+    result_truncated: bool
+    execution_error: str | None
+    execution_ms: int
+
     analysis: str
     answer: str
 
