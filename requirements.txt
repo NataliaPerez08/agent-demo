@@ -17,3 +17,7 @@ pydantic-settings
 sqlglot
 
 pyyaml
+
+pandas
+openpyxl
+matplotlib
