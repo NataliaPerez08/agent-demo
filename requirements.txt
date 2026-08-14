@@ -1,0 +1,17 @@
+fastapi
+uvicorn[standard]
+
+langchain
+langgraph
+langchain-openai
+
+langgraph-checkpoint-postgres
+
+psycopg[binary,pool]
+
+redis
+
+pydantic
+pydantic-settings
+
+sqlglot
