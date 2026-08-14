@@ -1,17 +1,38 @@
+import hashlib
+import json
 import time
 
 from psycopg.rows import dict_row
 
 from app.infrastructure.postgres import analytics_pool
+from app.infrastructure.redis import cache_get, cache_set
 
 
 MAX_ROWS = 100
 STATEMENT_TIMEOUT_MS = 5000
+QUERY_CACHE_TTL = 300
+QUERY_CACHE_PREFIX = "query:"
 
 
 async def execute_sql(state):
 
     sql = state["generated_sql"]
+
+    cache_key = QUERY_CACHE_PREFIX + hashlib.sha256(
+        sql.encode()
+    ).hexdigest()
+
+    cached = await cache_get(cache_key)
+    if cached:
+
+        payload = json.loads(cached)
+
+        return {
+            "query_result": payload["rows"],
+            "result_truncated": payload["truncated"],
+            "execution_error": None,
+            "execution_ms": 0,
+        }
 
     start = time.perf_counter()
 
@@ -47,6 +68,15 @@ async def execute_sql(state):
     if truncated:
 
         rows = rows[:MAX_ROWS]
+
+    await cache_set(
+        cache_key,
+        json.dumps(
+            {"rows": rows, "truncated": truncated},
+            default=str,
+        ),
+        QUERY_CACHE_TTL,
+    )
 
     return {
         "query_result": rows,

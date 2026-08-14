@@ -12,7 +12,7 @@ from app.nodes.schema import retrieve_schema
 from app.nodes.validate_sql import validate_sql
 
 
-def build_graph():
+def build_graph(checkpointer=None):
 
     graph = StateGraph(AnalystState)
 
@@ -37,7 +37,8 @@ def build_graph():
     graph.add_edge("generate_answer", END)
     graph.add_edge("failure", END)
 
-    return graph.compile()
+    return graph.compile(checkpointer=checkpointer)
 
 
+# Grafo sin persistencia para tests / uso directo.
 agent_graph = build_graph()

@@ -1,5 +1,9 @@
 from app.infrastructure.postgres import analytics_pool
+from app.infrastructure.redis import cache_get, cache_set
 
+
+SCHEMA_CACHE_KEY = "schema:analytics"
+SCHEMA_CACHE_TTL = 3600
 
 SCHEMA_QUERY = """
 SELECT
@@ -36,7 +40,12 @@ WHERE
     AND tc.table_schema = 'public';
 """
 
+
 async def retrieve_schema(state):
+
+    cached = await cache_get(SCHEMA_CACHE_KEY)
+    if cached:
+        return {"schema_context": cached}
 
     async with analytics_pool.connection() as conn:
 
@@ -45,6 +54,10 @@ async def retrieve_schema(state):
             await cursor.execute(SCHEMA_QUERY)
 
             rows = await cursor.fetchall()
+
+            await cursor.execute(RELATIONSHIP_QUERY)
+
+            rels = await cursor.fetchall()
 
     schema: dict[str, list[str]] = {}
 
@@ -73,6 +86,22 @@ TABLE {table}
 """
         )
 
+    if rels:
+
+        rel_lines = ["", "RELATIONSHIPS"]
+
+        for r in rels:
+
+            rel_lines.append(
+                f"{r[0]}.{r[1]} -> {r[2]}.{r[3]}"
+            )
+
+        parts.append("\n".join(rel_lines))
+
+    schema_context = "\n".join(parts)
+
+    await cache_set(SCHEMA_CACHE_KEY, schema_context, SCHEMA_CACHE_TTL)
+
     return {
-        "schema_context": "\n".join(parts)
+        "schema_context": schema_context
     }
