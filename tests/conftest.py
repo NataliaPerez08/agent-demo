@@ -51,6 +51,40 @@ async def analytics_pool_ready():
         await analytics_pool.close()
 
 
+async def _can_connect_agent() -> bool:
+    from app.infrastructure.postgres import agent_pool
+
+    try:
+        await agent_pool.open()
+        async with agent_pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute("SELECT 1")
+                await cur.fetchone()
+        return True
+    except Exception:
+        return False
+    finally:
+        try:
+            await agent_pool.close()
+        except Exception:
+            pass
+
+
+@pytest.fixture
+async def agent_db_ready():
+    """Abre el pool de la agent DB y hace skip si no esta disponible."""
+    if not await _can_connect_agent():
+        pytest.skip("agent DB unavailable (levantar docker compose)")
+
+    from app.infrastructure.postgres import agent_pool
+
+    await agent_pool.open()
+    try:
+        yield agent_pool
+    finally:
+        await agent_pool.close()
+
+
 @pytest.fixture
 async def full_stack():
     """Requiere LLM + DB. Gated por RUN_AGENT=1 para evitar coste accidental."""

@@ -3,6 +3,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, Request
 
 from app.api.schemas import ChatRequest, ChatResponse
+from app.infrastructure.audit import log_query
 from app.infrastructure.redis import (
     cache_expire,
     cache_incr_with_ttl,
@@ -18,6 +19,8 @@ SESSION_TTL = 86400
 
 RATE_LIMIT_MAX = 30
 RATE_LIMIT_WINDOW = 60
+
+DEFAULT_MODEL = "analyst-smart"
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -52,6 +55,21 @@ async def chat(request: ChatRequest, http_request: Request):
 
     # Refrescar TTL de sesion por actividad.
     await cache_expire(session_key, SESSION_TTL)
+
+    await log_query(
+        {
+            "user_id": user_id,
+            "thread_id": thread_id,
+            "question": request.question,
+            "generated_sql": result.get("generated_sql"),
+            "successful": bool(result.get("success", False)),
+            "error": result.get("execution_error") or result.get("validation_error"),
+            "execution_ms": int(result.get("execution_ms", 0)),
+            "row_count": len(result.get("query_result", [])),
+            "model": DEFAULT_MODEL,
+            "retry_count": int(result.get("retry_count", 0)),
+        }
+    )
 
     return ChatResponse(
         thread_id=thread_id,

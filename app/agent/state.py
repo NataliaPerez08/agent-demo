@@ -24,4 +24,6 @@ class AnalystState(TypedDict, total=False):
     analysis: str
     answer: str
 
+    success: bool
+
     retry_count: int

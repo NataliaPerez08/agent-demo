@@ -28,7 +28,10 @@ async def generate_answer(state):
 
     if not analysis:
 
-        return {"answer": "No hay informacion suficiente para responder."}
+        return {
+            "answer": "No hay informacion suficiente para responder.",
+            "success": True,
+        }
 
     llm = get_llm("analyst-smart")
 
@@ -51,4 +54,4 @@ Redacta la respuesta final al usuario.
         ]
     )
 
-    return {"answer": response.content.strip()}
+    return {"answer": response.content.strip(), "success": True}

@@ -11,4 +11,4 @@ async def failure(state):
         f"Motivo: {error}"
     )
 
-    return {"answer": answer}
+    return {"answer": answer, "success": False}
