@@ -15,3 +15,5 @@ pydantic
 pydantic-settings
 
 sqlglot
+
+pyyaml

@@ -1,0 +1,74 @@
+# Dataset de evaluacion del Data Analyst Agent.
+#
+# Cada caso define la pregunta y los expected_* que el evaluador comprueba:
+#   - expected_tables:  tablas que el SQL generado debe referenciar
+#   - expected_metric:  agrega/smetrica esperada (substring en el SQL)
+#   - expected_filters: filtros que el SQL debe contener (clave -> valor)
+#   - expected_result:  resultado numerico esperado (None si no aplica)
+#   - expected_contains: texto que debe aparecer en la respuesta final
+
+cases:
+
+  - id: revenue_julio
+    question: "¿Cuanto revenue hubo en julio?"
+    expected_tables:
+      - orders
+    expected_metric: "SUM(total)"
+    expected_filters:
+      status: completed
+      month: 7
+    expected_result: 52500
+    expected_contains: "52500"
+
+  - id: top_5_clientes
+    question: "¿Cuales fueron los 5 clientes con mas revenue?"
+    expected_tables:
+      - customers
+      - orders
+    expected_metric: "SUM(total)"
+    expected_filters:
+      status: completed
+    expected_result: 40500
+    expected_contains: "Stark"
+
+  - id: pais_top_revenue
+    question: "¿Que pais genero mas revenue?"
+    expected_tables:
+      - customers
+      - orders
+    expected_metric: "SUM(total)"
+    expected_filters:
+      status: completed
+    expected_result: 67300
+    expected_contains: "United States"
+
+  - id: junio_vs_julio
+    question: "Compara junio contra julio."
+    expected_tables:
+      - orders
+    expected_metric: "SUM(total)"
+    expected_filters:
+      status: completed
+    expected_result: null
+    expected_contains: "julio"
+
+  - id: productos_mas_unidades
+    question: "¿Que productos vendieron mas unidades?"
+    expected_tables:
+      - products
+      - order_items
+    expected_metric: "SUM(quantity)"
+    expected_filters:
+      status: completed
+    expected_result: 35
+    expected_contains: "Analytics Pro"
+
+  - id: ticket_promedio
+    question: "¿Cual fue el ticket promedio?"
+    expected_tables:
+      - orders
+    expected_metric: "AVG(total)"
+    expected_filters:
+      status: completed
+    expected_result: 5984.09
+    expected_contains: "5984"
