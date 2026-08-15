@@ -10,6 +10,11 @@ class Settings(BaseSettings):
 
     redis_url: str
 
+    # Alias de modelo expuesto por LiteLLM.
+    # Valores validos: analyst-smart, analyst-fast (OpenAI via LiteLLM),
+    # analyst-local, analyst-local-fast (Ollama via LiteLLM).
+    analyst_model: str = "analyst-smart"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=False,

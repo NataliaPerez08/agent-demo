@@ -3,6 +3,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, Request
 
 from app.api.schemas import ChatRequest, ChatResponse
+from app.config import settings
 from app.infrastructure.audit import log_query
 from app.infrastructure.observability import (
     Observation,
@@ -26,7 +27,7 @@ SESSION_TTL = 86400
 RATE_LIMIT_MAX = 30
 RATE_LIMIT_WINDOW = 60
 
-DEFAULT_MODEL = "analyst-smart"
+DEFAULT_MODEL = settings.analyst_model
 
 
 @router.post("/chat", response_model=ChatResponse)

@@ -9,5 +9,16 @@ model_list:
       model: openai/gpt-5
       api_key: os.environ/OPENAI_API_KEY
 
+  # Modelos locales servidos por Ollama (sin API key, sin coste).
+  - model_name: analyst-local
+    litellm_params:
+      model: ollama/qwen2.5:7b
+      api_base: http://ollama:11434
+
+  - model_name: analyst-local-fast
+    litellm_params:
+      model: ollama/qwen2.5:1.5b
+      api_base: http://ollama:11434
+
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY

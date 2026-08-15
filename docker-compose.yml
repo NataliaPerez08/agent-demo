@@ -15,6 +15,7 @@ services:
       - analytics
       - redis
       - litellm
+      - ollama
 
   postgres:
     image: postgres:16
@@ -48,6 +49,32 @@ services:
       - ./litellm/config.yaml:/app/config.yaml
     env_file:
       - .env
+    depends_on:
+      - ollama
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: analyst-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: analyst-ollama-init
+    depends_on:
+      - ollama
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo ">> descargando modelos de Ollama (primera vez puede tardar)..."
+        ollama pull qwen2.5:1.5b
+        ollama pull qwen2.5:7b
+        echo ">> modelos listos"
+    restart: "no"
 
   analytics:
     image: postgres:16
@@ -73,3 +100,4 @@ services:
 volumes:
   agent_postgres_data:
   analytics_postgres_data:
+  ollama_data:

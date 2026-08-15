@@ -33,7 +33,7 @@ async def analyze_results(state):
 
         return {"analysis": "La consulta no devolvio resultados."}
 
-    llm = get_llm("analyst-smart")
+    llm = get_llm()
 
     payload = json.dumps(
         results,

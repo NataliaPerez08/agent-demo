@@ -49,7 +49,7 @@ async def fix_sql(state):
         or "error desconocido"
     )
 
-    llm = get_llm("analyst-smart")
+    llm = get_llm()
 
     prompt = f"""
 ESQUEMA DISPONIBLE:
