@@ -226,6 +226,29 @@ py -m pytest tests -q
 | integration      | analytics/agent DB     | `integration` |
 | agent (e2e/eval) | DB + LLM + `RUN_AGENT=1` | `agent`     |
 
+### Tests con modelo local (Ollama, sin API key)
+
+`docker compose up` ya descarga y verifica los modelos de Ollama
+automáticamente (`ollama-init` con healthcheck y smoke test). Una vez
+levantado el stack, correr los tests e2e contra el modelo local:
+
+```bash
+# Linux/macOS (Makefile)
+make test-local
+# o todo en uno (levanta ollama + DBs, corre tests, baja al finish):
+make test-local-up
+
+# Windows (PowerShell)
+.\scripts\test-local.ps1 -Up -Down
+# o si el stack ya esta levantado:
+.\scripts\test-local.ps1
+```
+
+Esto setea `ANALYST_MODEL=analyst-local-fast` (qwen2.5:1.5b) y
+`RUN_AGENT=1`. El `conftest` probea `http://localhost:11434/api/tags`
+para confirmar que el modelo esté cargado antes de correr (skip limpio
+si no lo está).
+
 ---
 
 ## Evaluación
@@ -270,6 +293,37 @@ Definidas en `.env` (ver `.env.example`):
 | `AGENT_DATABASE_URL`      | PostgreSQL del agente (checkpoints+audit)|
 | `ANALYTICS_DATABASE_URL`  | PostgreSQL analítica (rol read-only)     |
 | `REDIS_URL`               | URL de Redis                             |
+| `ANALYST_MODEL`           | Alias de modelo (`analyst-smart` por defecto; ver Ollama) |
+
+---
+
+## Modelos locales con Ollama (sin API key, sin coste)
+
+El stack incluye un servicio **Ollama** que LiteLLM expone como modelos
+alternativos. Para usarlos, define en `.env`:
+
+```env
+ANALYST_MODEL=analyst-local        # qwen2.5:7b  (capaz)
+# o
+ANALYST_MODEL=analyst-local-fast   # qwen2.5:1.5b (ligero)
+```
+
+`docker compose up --build` levanta además `ollama-init`, que descarga los
+modelos la **primera vez** (puede tardar varios minutos según conexión).
+Las llamadas al agente fallarán con 404 hasta que los modelos estén listos;
+luego funcionan sin `OPENAI_API_KEY`.
+
+> Nota: en CPU los modelos grandes son lentos. Para GPU, monta el dispositivo
+> en el servicio `ollama` del compose (ver [docs de Ollama](https://github.com/ollama/ollama)).
+
+Aliases disponibles (definidos en `litellm/config.yaml`):
+
+| Alias                | Backend          | Notas                          |
+|----------------------|------------------|--------------------------------|
+| `analyst-smart`      | OpenAI gpt-5     | default, requiere API key      |
+| `analyst-fast`       | OpenAI gpt-5-mini| rápido, requiere API key        |
+| `analyst-local`      | Ollama qwen2.5:7b | local, sin coste              |
+| `analyst-local-fast` | Ollama qwen2.5:1.5b | local, ligero               |
 
 ---
 

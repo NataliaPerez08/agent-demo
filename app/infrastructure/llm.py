@@ -5,9 +5,12 @@ from app.infrastructure.observability import get_observation
 
 
 def get_llm(
-    model: str = "analyst-smart",
+    model: str | None = None,
     temperature: float = 0,
 ) -> ChatOpenAI:
+
+    if model is None:
+        model = settings.analyst_model
 
     return ChatOpenAI(
         model=model,

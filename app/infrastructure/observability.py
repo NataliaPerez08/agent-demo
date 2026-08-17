@@ -11,6 +11,9 @@ logger = logging.getLogger("observability")
 MODEL_RATES = {
     "analyst-fast": {"input": 0.15, "output": 0.60},
     "analyst-smart": {"input": 1.50, "output": 6.00},
+    # Modelos locales (Ollama): sin coste.
+    "analyst-local": {"input": 0.0, "output": 0.0},
+    "analyst-local-fast": {"input": 0.0, "output": 0.0},
 }
 
 
