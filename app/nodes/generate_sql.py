@@ -33,7 +33,7 @@ CANNOT_ANSWER
 
 
 async def generate_sql(state):
-    llm = get_llm("analyst-smart")
+    llm = get_llm()
 
     prompt = f"""
 ESQUEMA DISPONIBLE:

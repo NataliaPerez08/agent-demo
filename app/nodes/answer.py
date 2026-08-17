@@ -33,7 +33,7 @@ async def generate_answer(state):
             "success": True,
         }
 
-    llm = get_llm("analyst-smart")
+    llm = get_llm()
 
     prompt = f"""
 PREGUNTA DEL USUARIO:
