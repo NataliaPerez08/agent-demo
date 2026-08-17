@@ -1,5 +1,5 @@
 .PHONY: help up down ollama-up ollama-logs test test-local test-local-up test-unit \
-       image-build image-push image deploy-cce
+       image-build image-push image deploy-cce chatbot-up chatbot-logs
 
 ANALYST_MODEL ?= analyst-local-fast
 PY ?= python3
@@ -24,6 +24,8 @@ help:
 	@echo "  test-unit     - solo unitarios (sin Docker)"
 	@echo "  test-local    - pytest con modelo local (requiere DB levantada + ollama-up)"
 	@echo "  test-local-up - levanta ollama + DBs, corre pytest con modelo local, baja al finish"
+	@echo "  chatbot-up    - levanta solo el chatbot Chainlit (requiere API corriendo)"
+	@echo "  chatbot-logs  - logs del chatbot"
 	@echo ""
 	@echo "Imagen Docker (SWR Huawei Cloud):"
 	@echo "  image-build   - construye la imagen (IMAGE=$(IMAGE))"
@@ -64,6 +66,15 @@ test-local-up: ollama-up
 	-ANALYST_MODEL=$(ANALYST_MODEL) RUN_AGENT=1 $(PY) -m pytest tests -q
 	@echo ">> bajando stack temporal..."
 	docker compose down
+
+# ---- Chatbot (Chainlit) ----
+
+chatbot-up:
+	docker compose up -d chatbot
+	@echo ">> chatbot en http://localhost:8001"
+
+chatbot-logs:
+	docker compose logs -f chatbot
 
 # ---- Imagen Docker ----
 
