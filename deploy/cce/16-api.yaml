@@ -3,12 +3,8 @@ kind: Service
 metadata:
   name: api
   namespace: data-analyst-agent
-  annotations:
-    kubernetes.io/elb.class: union
-    kubernetes.io/elb.id: "TU_ELB_ID"
-    kubernetes.io/elb.port: "8000"
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
     app: api
   ports:
