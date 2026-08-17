@@ -112,7 +112,8 @@ Agente: ...  (entiende el contexto)
 | Método | Ruta     | Descripción                                  |
 |--------|----------|----------------------------------------------|
 | GET    | `/health`| Status del servicio                          |
-| POST   | `/chat`  | Pregunta al agente (devuelve answer + sql)   |
+| POST   | `/chat`  | Pregunta al agente (devuelve answer + sql + chart) |
+| GET    | `/export`| Descarga el último resultado en CSV o XLSX     |
 
 ### Request `/chat`
 
@@ -129,12 +130,49 @@ Agente: ...  (entiende el contexto)
 {
   "thread_id": "uuid",
   "answer": "...",
-  "sql": "SELECT ..."
+  "sql": "SELECT ...",
+  "chart": {
+    "type": "bar",
+    "title": "Top clientes",
+    "x": "name",
+    "y": "revenue",
+    "series": null,
+    "columns": ["name", "revenue"]
+  }
 }
 ```
 
 `user_id` opcional (default `anon`). Rate limit: 30 peticiones/min por
 usuario (fail-open si Redis no responde).
+
+### Export (`/export`)
+
+Descarga el último resultado de un `thread_id` (cacheado en Redis, TTL 1h):
+
+```bash
+# CSV
+curl -o results.csv "http://localhost:8000/export?thread_id=<uuid>&fmt=csv"
+
+# Excel
+curl -o results.xlsx "http://localhost:8000/export?thread_id=<uuid>&fmt=xlsx"
+```
+
+| Parámetro    | Tipo | Default | Descripción                              |
+|--------------|------|---------|------------------------------------------|
+| `thread_id`  | str  | —       | `thread_id` devuelto por `/chat` (req.)  |
+| `fmt`        | str  | `csv`   | `csv` o `xlsx`                           |
+
+### Charts
+
+`/chat` devuelve además `chart`: una sugerencia de visualización heurística
+derivada de los resultados (no requiere LLM extra). Tipos:
+
+- `line`  — eje temporal + 1 métrica
+- `bar`   — 1 categoría + 1..N métricas
+- `pie`   — 1 categoría + 1 métrica (≤6 filas)
+
+Columnas tipo `id`/`*_id` se excluyen como métricas. Si no encaja ningún
+patrón, `chart` es `null` (los datos se muestran como tabla).
 
 ---
 
@@ -158,8 +196,11 @@ app/
 │   ├── answer.py               respuesta final
 │   └── failure.py              nodo terminal
 ├── api/
-│   ├── routes.py               POST /chat
-│   └── schemas.py              ChatRequest / ChatResponse
+│   ├── routes.py               POST /chat + GET /export
+│   └── schemas.py              ChatRequest/Response + ChartConfig
+├── services/
+│   ├── export.py               rows → CSV / XLSX
+│   └── charts.py               suggest_chart (line/bar/pie)
 ├── infrastructure/
 │   ├── postgres.py             pools + AsyncPostgresSaver (checkpointer)
 │   ├── redis.py               caché/sesión/rate-limit (fail-open)
@@ -226,6 +267,9 @@ py -m pytest tests -q
 | integration      | analytics/agent DB     | `integration` |
 | agent (e2e/eval) | DB + LLM + `RUN_AGENT=1` | `agent`     |
 
+Unitarios cubren: validador SQL (18 casos), observabilidad (timings,
+tokens, coste), **export CSV/XLSX** y **sugerencia de charts**
+(line/bar/pie).
 ### Tests con modelo local (Ollama, sin API key)
 
 `docker compose up` ya descarga y verifica los modelos de Ollama
@@ -330,5 +374,9 @@ Aliases disponibles (definidos en `litellm/config.yaml`):
 ## Plan de acción
 
 El desarrollo sigue `action_plan.md`. Estado:
-Fases 1–18 completadas (MVP + conversacional + confiabilidad).
+
+- **Fases 1–18** completadas (MVP + conversacional + confiabilidad).
+- **Etapa D** en curso (rama `etapa-d`): export CSV/Excel + charts ✅.
+  Pendientes: métricas, RAG, reportes programados, auth empresarial.
+
 Ver `git log` para el histórico por etapa.
