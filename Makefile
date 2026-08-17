@@ -125,6 +125,7 @@ deploy-cce:
 	kubectl apply -f deploy/cce/14-ollama-init-job.yaml
 	kubectl wait job/ollama-init -n data-analyst-agent --for=condition=complete --timeout=600s
 	@echo ">> aplicando litellm, MCP servers y api..."
+	kubectl apply -f deploy/cce/21-litellm-db-redis.yaml
 	kubectl apply -f deploy/cce/15-litellm.yaml
 	kubectl apply -f deploy/cce/18-mcp-glossary.yaml
 	kubectl apply -f deploy/cce/19-mcp-explorer.yaml

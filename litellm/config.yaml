@@ -9,7 +9,6 @@ model_list:
       model: openai/gpt-5
       api_key: os.environ/OPENAI_API_KEY
 
-  # Modelos locales servidos por Ollama (sin API key, sin coste).
   - model_name: analyst-local
     litellm_params:
       model: ollama/qwen2.5:7b
@@ -20,5 +19,14 @@ model_list:
       model: ollama/qwen2.5:1.5b
       api_base: http://ollama:11434
 
+litellm_settings:
+  # Tracking de spend y logs en la DB propia de LiteLLM.
+  store_prompts_in_spend_logs: true
+  request_timeout: 120
+
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
+  # DB propia de LiteLLM (tracking de spend, logs, keys).
+  database_url: os.environ/LITELLM_DATABASE_URL
+  # Redis propio de LiteLLM (caching, rate limiting interno).
+  redis_url: os.environ/LITELLM_REDIS_URL

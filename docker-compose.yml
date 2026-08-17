@@ -2,7 +2,7 @@ services:
 
   api:
     build: .
-    container_name: analyst-api
+    container_name: app-api
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8000:8000"
@@ -11,19 +11,17 @@ services:
     env_file:
       - .env
     depends_on:
-      - postgres
-      - analytics
-      - redis
+      - app-postgres
+      - app-analytics
+      - app-redis
       - litellm
       - ollama
       - mcp-glossary
       - mcp-explorer
-      - mcp-glossary
-      - mcp-explorer
 
-  postgres:
+  app-postgres:
     image: postgres:16
-    container_name: analyst-agent-db
+    container_name: app-postgres-agent
     environment:
       POSTGRES_DB: agent
       POSTGRES_USER: agent
@@ -31,17 +29,53 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - agent_postgres_data:/var/lib/postgresql/data
+      - app_postgres_data:/var/lib/postgresql/data
       - ./database/agent/ddl/001_audit.sql:/docker-entrypoint-initdb.d/001_audit.sql
-  redis:
+
+  app-analytics:
+    image: postgres:16
+    container_name: app-postgres-analytics
+    environment:
+      POSTGRES_DB: analytics
+      POSTGRES_USER: analytics_admin
+      POSTGRES_PASSWORD: analytics_admin
+    ports:
+      - "5433:5432"
+    volumes:
+      - app_analytics_data:/var/lib/postgresql/data
+      - ./database/analytics/ddl/001_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql
+      - ./database/analytics/ddl/002_indexes.sql:/docker-entrypoint-initdb.d/002_indexes.sql
+      - ./database/analytics/ddl/003_views.sql:/docker-entrypoint-initdb.d/003_views.sql
+      - ./database/analytics/ddl/004_agent_role.sql:/docker-entrypoint-initdb.d/004_agent_role.sql
+      - ./database/analytics/dml/001_seed.sql:/docker-entrypoint-initdb.d/005_seed.sql
+
+  app-redis:
     image: redis:7
-    container_name: analyst-redis
+    container_name: app-redis
     ports:
       - "6379:6379"
 
+  litellm-db:
+    image: postgres:16
+    container_name: litellm-postgres
+    environment:
+      POSTGRES_DB: litellm
+      POSTGRES_USER: litellm
+      POSTGRES_PASSWORD: litellm
+    ports:
+      - "5434:5432"
+    volumes:
+      - litellm_postgres_data:/var/lib/postgresql/data
+
+  litellm-redis:
+    image: redis:7
+    container_name: litellm-redis
+    ports:
+      - "6380:6379"
+
   litellm:
     image: ghcr.io/berriai/litellm:main-latest
-    container_name: analyst-litellm
+    container_name: litellm-proxy
     command:
       - "--config"
       - "/app/config.yaml"
@@ -54,12 +88,16 @@ services:
     env_file:
       - .env
     depends_on:
+      litellm-db:
+        condition: service_started
+      litellm-redis:
+        condition: service_started
       ollama-init:
         condition: service_completed_successfully
 
   ollama:
     image: ollama/ollama:latest
-    container_name: analyst-ollama
+    container_name: app-ollama
     ports:
       - "11434:11434"
     volumes:
@@ -73,7 +111,7 @@ services:
 
   ollama-init:
     image: ollama/ollama:latest
-    container_name: analyst-ollama-init
+    container_name: app-ollama-init
     depends_on:
       ollama:
         condition: service_healthy
@@ -83,10 +121,8 @@ services:
     command:
       - |
         echo ">> descargando modelos de Ollama (primera vez puede tardar)..."
-        # Modelo ligero primero (tests); el grande despues.
         ollama pull qwen2.5:1.5b
         ollama pull qwen2.5:7b
-        # Smoke: verificar que el modelo de tests este cargado.
         if ! ollama list | grep -q 'qwen2.5:1.5b'; then
           echo "!! ERROR: qwen2.5:1.5b no aparece en ollama list"
           exit 1
@@ -94,30 +130,9 @@ services:
         echo ">> modelos listos y verificados"
     restart: "no"
 
-  analytics:
-    image: postgres:16
-    container_name: analyst-data-db
-
-    environment:
-      POSTGRES_DB: analytics
-      POSTGRES_USER: analytics_admin
-      POSTGRES_PASSWORD: analytics_admin
-
-    ports:
-      - "5433:5432"
-
-    volumes:
-      - analytics_postgres_data:/var/lib/postgresql/data
-
-      - ./database/analytics/ddl/001_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql
-      - ./database/analytics/ddl/002_indexes.sql:/docker-entrypoint-initdb.d/002_indexes.sql
-      - ./database/analytics/ddl/003_views.sql:/docker-entrypoint-initdb.d/003_views.sql
-      - ./database/analytics/ddl/004_agent_role.sql:/docker-entrypoint-initdb.d/004_agent_role.sql
-      - ./database/analytics/dml/001_seed.sql:/docker-entrypoint-initdb.d/005_seed.sql
-
   mcp-glossary:
     build: .
-    container_name: analyst-mcp-glossary
+    container_name: app-mcp-glossary
     command: python -m mcp_servers.servers.business_glossary
     ports:
       - "8100:8100"
@@ -129,7 +144,7 @@ services:
 
   mcp-explorer:
     build: .
-    container_name: analyst-mcp-explorer
+    container_name: app-mcp-explorer
     command: python -m mcp_servers.servers.analytics_explorer
     ports:
       - "8101:8101"
@@ -138,14 +153,14 @@ services:
     env_file:
       - .env
     depends_on:
-      - analytics
+      - app-analytics
     restart: unless-stopped
 
   chatbot:
     build:
       context: .
       dockerfile: chatbot/Dockerfile
-    container_name: analyst-chatbot
+    container_name: app-chatbot
     command: chainlit run chatbot/app.py --host 0.0.0.0 --port 8001
     ports:
       - "8001:8001"
@@ -158,6 +173,7 @@ services:
     restart: unless-stopped
 
 volumes:
-  agent_postgres_data:
-  analytics_postgres_data:
+  app_postgres_data:
+  app_analytics_data:
+  litellm_postgres_data:
   ollama_data:
