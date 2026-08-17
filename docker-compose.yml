@@ -16,6 +16,10 @@ services:
       - redis
       - litellm
       - ollama
+      - mcp-glossary
+      - mcp-explorer
+      - mcp-glossary
+      - mcp-explorer
 
   postgres:
     image: postgres:16
@@ -110,6 +114,32 @@ services:
       - ./database/analytics/ddl/003_views.sql:/docker-entrypoint-initdb.d/003_views.sql
       - ./database/analytics/ddl/004_agent_role.sql:/docker-entrypoint-initdb.d/004_agent_role.sql
       - ./database/analytics/dml/001_seed.sql:/docker-entrypoint-initdb.d/005_seed.sql
+
+  mcp-glossary:
+    build: .
+    container_name: analyst-mcp-glossary
+    command: python -m mcp_servers.servers.business_glossary
+    ports:
+      - "8100:8100"
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  mcp-explorer:
+    build: .
+    container_name: analyst-mcp-explorer
+    command: python -m mcp_servers.servers.analytics_explorer
+    ports:
+      - "8101:8101"
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - analytics
+    restart: unless-stopped
 
 volumes:
   agent_postgres_data:
