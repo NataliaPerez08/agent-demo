@@ -2,10 +2,14 @@
 
 Agente que recibe preguntas en lenguaje natural sobre datos de ventas,
 las convierte en SQL seguro, consulta la base analítica y responde
-manteniendo contexto conversacional.
+manteniendo contexto conversacional. Incluye **chatbot Chainlit**,
+integración **MCP bidireccional** (cliente + servidor) y export
+CSV/Excel + sugerencia de charts.
 
-- **API**: FastAPI + LangGraph
-- **Modelos**: LiteLLM (gateway a OpenAI gpt-5 / gpt-5-mini)
+- **API**: FastAPI + LangGraph (grafo híbrido SQL | MCP)
+- **Chatbot**: Chainlit (:8001) con streaming, SQL display y export
+- **MCP**: bidireccional — consume 4 servers MCP y expone `ask_analytics`
+- **Modelos**: LiteLLM (gateway a OpenAI gpt-5 / gpt-5-mini + Ollama local)
 - **Datos analíticos**: PostgreSQL (rol read-only `analyst_agent`)
 - **Memoria / checkpoints**: PostgreSQL (agent DB)
 - **Sesiones / caché / rate limit**: Redis
@@ -16,26 +20,50 @@ manteniendo contexto conversacional.
 ## Arquitectura
 
 ```text
-Usuario
-   │  HTTP
-   ▼
-FastAPI + LangGraph  ──► LiteLLM ──► modelos (gpt-5 / gpt-5-mini)
-   │
-   ├──► PostgreSQL (analytics)  · datos + views + rol read-only
-   ├──► PostgreSQL (agent)      · checkpoints + auditoría
-   └──► Redis                   · sesiones · caché schema/query · rate limit
+[Usuario]
+    │
+    ▼
+[Chainlit :8001] ──HTTP──► [/chat FastAPI :8000] ──► [LangGraph agent]
+                                                        │
+                                              classify_question
+                                                  │
+                                    ┌─────────────┴─────────────┐
+                                    ▼                           ▼
+                            Pipeline SQL                 MCP loop
+                            (determinista)            (agent_with_tools
+                            validate AST                ↔ mcp_tools)
+                            read-only                       │
+                            timeout                         │
+                            auditoría                       ▼
+                                    │                  answer (tools)
+                                    ▼
+                           answer + SQL + chart
+                                    │
+                          [/mcp endpoint]
+                           expone ask_analytics
+                           para Claude Desktop
+                           y otros clientes MCP
 ```
 
-Pipeline del agente:
+Servidores MCP consumidos por el agente:
+
+| Server | Tipo | Puerto | Descripción |
+|--------|------|--------|-------------|
+| `business-glossary` | Resources | 8100 | `data_dictionary.yaml` + business rules como recursos MCP |
+| `analytics-explorer` | Tools | 8101 | `list_tables()`, `describe_table()`, `sample_table()` |
+| `filesystem` | Tools | 8102 | Lectura de archivos/docs locales (estándar) |
+| `websearch` | Tools | 8103 | Búsqueda web para datos externos (estándar) |
+
+Pipeline SQL del agente (preservado, determinista):
 
 ```text
-question → retrieve_schema → generate_sql → validate_sql
-                                              │  inválido → fix_sql → (revalida)
-                                              ▼  válido
-                                         execute_sql
-                                              │  error → fix_sql → (revalida)
-                                              ▼  ok
-                                       analyze_results → generate_answer
+question → retrieve_schema → classify → generate_sql → validate_sql
+                                                      │  inválido → fix_sql → (revalida)
+                                                      ▼  válido
+                                                 execute_sql
+                                                      │  error → fix_sql → (revalida)
+                                                      ▼  ok
+                                            analyze_results → generate_answer
 ```
 
 - Máximo **2 retries** de self-healing.
@@ -46,17 +74,19 @@ question → retrieve_schema → generate_sql → validate_sql
 ## Requisitos
 
 - Docker + Docker Compose
-- `OPENAI_API_KEY` válida (la consumen los modelos vía LiteLLM)
+- `OPENAI_API_KEY` válida **o** `ANALYST_MODEL=analyst-local-fast` (Ollama, sin API key)
 
 ---
 
 ## Puesta en marcha
 
-1. Copiar variables y setear la API key de OpenAI:
+1. Copiar variables y setear la API key de OpenAI (o usar modelo local):
 
    ```bash
    cp .env.example .env
-   # editar .env y poner un valor real en OPENAI_API_KEY
+   # editar .env:
+   #   OPENAI_API_KEY=sk-...         (o dejar TU_API_KEY si usas Ollama)
+   #   ANALYST_MODEL=analyst-local-fast  (para modelo local sin coste)
    ```
 
 2. Levantar el stack:
@@ -65,10 +95,20 @@ question → retrieve_schema → generate_sql → validate_sql
    docker compose up --build
    ```
 
-   Esto levanta: `api`, `postgres` (agent DB), `analytics` (datos), `redis`
-   y `litellm`. Los DDL y el seed se inicializan automáticamente en la
-   `analytics` DB, y el rol read-only `analyst_agent` + la tabla de
-   auditoría en la `agent` DB.
+   Servicios levantados (10):
+
+   | Servicio | Puerto | Descripción |
+   |----------|--------|-------------|
+   | `api` | 8000 | FastAPI + LangGraph agent |
+   | `chatbot` | 8001 | Chainlit UI |
+   | `litellm` | 4000 | Gateway de modelos |
+   | `ollama` | 11434 | Modelos locales |
+   | `ollama-init` | — | Job: descarga modelos (1ª vez) |
+   | `postgres` | 5432 | Agent DB (checkpoints + auditoría) |
+   | `analytics` | 5433 | Analytics DB (datos + rol read-only) |
+   | `redis` | 6379 | Sesiones + caché + rate limit |
+   | `mcp-glossary` | 8100 | Server MCP: glosario semántico |
+   | `mcp-explorer` | 8101 | Server MCP: exploración de tablas |
 
 3. Health check:
 
@@ -77,7 +117,7 @@ question → retrieve_schema → generate_sql → validate_sql
    # {"status":"ok"}
    ```
 
-4. Preguntar:
+4. Preguntar vía API:
 
    ```bash
    curl -X POST http://localhost:8000/chat \
@@ -85,15 +125,10 @@ question → retrieve_schema → generate_sql → validate_sql
      -d '{"question": "¿Cuáles fueron los 5 clientes con más revenue?"}'
    ```
 
-   Respuesta:
+5. **O usar el chatbot** en `http://localhost:8001`:
 
-   ```json
-   {
-     "thread_id": "...",
-     "answer": "Los cinco clientes con mayor revenue fueron...",
-     "sql": "SELECT ..."
-   }
-   ```
+   UI de Chainlit con streaming, muestra respuesta + SQL + chart sugerido,
+   y botones para exportar CSV/Excel.
 
 El mismo `user_id` reutiliza el `thread_id` (sesión en Redis) →
 **follow-ups** conversacionales:
@@ -109,10 +144,12 @@ Agente: ...  (entiende el contexto)
 
 ## Endpoints
 
-| Método | Ruta     | Descripción                                  |
-|--------|----------|----------------------------------------------|
-| GET    | `/health`| Status del servicio                          |
-| POST   | `/chat`  | Pregunta al agente (devuelve answer + sql)   |
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/health` | Status del servicio |
+| POST | `/chat` | Pregunta al agente (answer + sql + chart) |
+| GET | `/export` | Descarga último resultado en CSV o XLSX |
+| POST/GET | `/mcp` | Servidor MCP (streamable HTTP) — tool `ask_analytics` |
 
 ### Request `/chat`
 
@@ -129,12 +166,86 @@ Agente: ...  (entiende el contexto)
 {
   "thread_id": "uuid",
   "answer": "...",
-  "sql": "SELECT ..."
+  "sql": "SELECT ...",
+  "chart": {
+    "type": "bar",
+    "title": "Top clientes",
+    "x": "name",
+    "y": "revenue",
+    "series": null,
+    "columns": ["name", "revenue"]
+  }
 }
 ```
 
 `user_id` opcional (default `anon`). Rate limit: 30 peticiones/min por
 usuario (fail-open si Redis no responde).
+
+### Export (`/export`)
+
+Descarga el último resultado de un `thread_id` (cacheado en Redis, TTL 1h):
+
+```bash
+# CSV
+curl -o results.csv "http://localhost:8000/export?thread_id=<uuid>&fmt=csv"
+
+# Excel
+curl -o results.xlsx "http://localhost:8000/export?thread_id=<uuid>&fmt=xlsx"
+```
+
+### Charts
+
+`/chat` devuelve `chart`: sugerencia de visualización heurística derivada
+de los resultados (sin LLM extra). Tipos: `line` (temporal), `bar`
+(categoría + métrica), `pie` (≤6 filas). Columnas `id`/`*_id` excluidas.
+Si no encaja ningún patrón, `chart` es `null`.
+
+### MCP (`/mcp`)
+
+El agente expone la tool `ask_analytics(question)` vía MCP streamable HTTP.
+Clientes MCP como Claude Desktop pueden consumirla:
+
+```
+URL: http://<host>:8000/mcp
+Transport: streamable-http
+Tool: ask_analytics(question: str) -> str
+```
+
+---
+
+## MCP: integración bidireccional
+
+El agente es **cliente y servidor MCP** simultáneamente.
+
+### Agente como cliente (consume tools MCP)
+
+El grafo LangGraph es **híbrido**: tras recuperar el schema, un
+clasificador heurístico (`classify_question`) decide:
+
+- **`"sql"`** → pipeline SQL determinista (preservado 100%: validación AST,
+  read-only, timeout, auditoría)
+- **`"mcp"`** → loop reactivo con `ToolNode` (el LLM decide qué tools MCP
+  llamar)
+
+Si no hay servidores MCP configurados, el agente arranca en modo
+pipeline-only (backward compatible).
+
+### Agente como servidor (expone `ask_analytics`)
+
+El endpoint `/mcp` monta un `FastMCP` server con la tool
+`ask_analytics(question: str) -> str` que invoca el grafo internamente.
+Permite que clientes MCP externos usen el data analyst agent como una
+capability más.
+
+### Servidores MCP propios
+
+```text
+mcp_servers/
+├── servers/
+│   ├── business_glossary.py    Resources: glossary://database, metrics, tables
+│   └── analytics_explorer.py   Tools: list_tables, describe_table, sample_table
+└── client.py                   MultiServerMCPClient (4 servers, fail-open)
+```
 
 ---
 
@@ -142,33 +253,50 @@ usuario (fail-open si Redis no responde).
 
 ```text
 app/
-├── main.py                     FastAPI + lifespan (DB + checkpointer)
-├── config.py                   Settings (env)
+├── main.py                     FastAPI + lifespan (DB + checkpointer + MCP)
+├── config.py                   Settings (env, ANALYST_MODEL)
 ├── agent/
-│   ├── state.py                AnalystState (TypedDict)
-│   ├── routing.py              routing condicional (validate/execute)
-│   └── graph.py                StateGraph (build_graph(checkpointer))
+│   ├── state.py                AnalystState (TypedDict: question_type, messages)
+│   ├── routing.py              classify_question + routing SQL|MCP
+│   ├── mcp_tools.py            agent_with_tools + mcp_answer (loop reactivo)
+│   └── graph.py                StateGraph híbrido (build_graph(checkpointer, mcp_tools))
 ├── nodes/
-│   ├── schema.py               retrieve_schema (+ caché Redis)
+│   ├── schema.py               retrieve_schema (+ caché Redis + relaciones FK)
 │   ├── generate_sql.py         LLM → SQL
-│   ├── validate_sql.py         SQLGlot AST validator
-│   ├── execute_sql.py          pool async + timeout + MAX_ROWS + caché
-│   ├── fix_sql.py              self-healing
+│   ├── validate_sql.py         SQLGlot AST validator (whitelist + funciones)
+│   ├── execute_sql.py          pool async + timeout + MAX_ROWS + caché query
+│   ├── fix_sql.py              self-healing (max 2 retries)
 │   ├── analyze.py              análisis de resultados
 │   ├── answer.py               respuesta final
 │   └── failure.py              nodo terminal
 ├── api/
-│   ├── routes.py               POST /chat
-│   └── schemas.py              ChatRequest / ChatResponse
+│   ├── routes.py               POST /chat + GET /export
+│   ├── schemas.py              ChatRequest/Response + ChartConfig
+│   └── mcp_server.py           FastMCP server: tool ask_analytics (/mcp)
 ├── infrastructure/
 │   ├── postgres.py             pools + AsyncPostgresSaver (checkpointer)
 │   ├── redis.py               caché/sesión/rate-limit (fail-open)
 │   ├── llm.py                 get_llm + ainvoke_with_usage (tokens)
 │   ├── audit.py                log_query → analytics_query_log
 │   └── observability.py        Observation (contextvar), timed, reporte
+├── services/
+│   ├── export.py               rows → CSV / XLSX
+│   └── charts.py               suggest_chart (line/bar/pie)
 └── eval/
     ├── metrics.py              métricas por dimensión
     └── evaluator.py           run_dataset + summarize + reporte
+
+mcp_servers/                    Servidores MCP propios + cliente
+├── servers/
+│   ├── business_glossary.py    Resources MCP (data_dictionary)
+│   └── analytics_explorer.py   Tools MCP (list/describe/sample)
+└── client.py                   MultiServerMTPClient (fail-open)
+
+chatbot/                        UI Chainlit
+├── app.py                      Chat con SQL display + chart + export
+├── agent_client.py             Cliente HTTP async para /chat + /export
+├── Dockerfile                  Imagen separada
+└── requirements.txt            chainlit + httpx
 
 database/
 ├── analytics/                  datos de negocio (rol read-only)
@@ -178,8 +306,17 @@ database/
 └── agent/                      checkpoints + auditoría
     └── ddl/  (001_audit.sql)
 
+deploy/cce/                     Manifests Kubernetes (Huawei Cloud CCE)
+├── 00-namespace … 17-elb       Infra + datos + API + ELB
+├── 18-mcp-glossary             Deployment + Service (:8100)
+├── 19-mcp-explorer             Deployment + Service (:8101)
+├── 20-chatbot                  Deployment + Service (:8001)
+└── create-configmaps.sh        Genera ConfigMap SQL analytics
+
 eval/dataset.yaml               dataset de evaluación (6 casos)
-litellm/config.yaml             modelos analyst-fast / analyst-smart
+litellm/config.yaml             modelos (OpenAI + Ollama)
+Makefile                        targets: up/down/test/image/deploy-cce/mcp/chatbot
+flake.nix                       dev shell (Nix)
 tests/  (unit, integration, agent)
 ```
 
@@ -200,6 +337,44 @@ Capas (defensa en profundidad):
 
 ---
 
+## Makefile
+
+```bash
+make help          # lista todos los targets
+
+# Stack
+make up            # docker compose up --build
+make down          # detiene el stack
+
+# Ollama
+make ollama-up     # levanta ollama + descarga modelos
+make ollama-logs   # logs
+
+# MCP
+make mcp-up        # levanta glossary + explorer
+make mcp-logs      # logs
+
+# Chatbot
+make chatbot-up    # levanta Chainlit
+make chatbot-logs  # logs
+
+# Tests
+make test          # pytest completo
+make test-unit     # solo unitarios
+make test-local    # pytest con modelo local (RUN_AGENT=1)
+make test-local-up # levanta ollama + DBs, corre tests, baja al finish
+
+# Imagen Docker (SWR Huawei Cloud)
+make image-build   # construye imagen
+make image-push    # login SWR + push
+make image         # build + push
+
+# Deploy CCE
+make deploy-cce    # aplica manifests en orden + espera rollout
+```
+
+---
+
 ## Tests
 
 ```bash
@@ -214,40 +389,32 @@ Tests de **integración** y **agente** requieren servicios levantados.
 Para activarlos (gated, evitan coste accidental):
 
 ```bash
-# DB disponibles (docker compose up) + API key real:
 $env:RUN_AGENT="1"           # PowerShell  (export RUN_AGENT=1 en *nix)
 $env:OPENAI_API_KEY="sk-..."
 py -m pytest tests -q
 ```
 
-| Suite            | Requiere               | Marker        |
-|------------------|------------------------|---------------|
-| unit             | nada                   | —             |
-| integration      | analytics/agent DB     | `integration` |
-| agent (e2e/eval) | DB + LLM + `RUN_AGENT=1` | `agent`     |
+| Suite | Requiere | Marker |
+|-------|----------|--------|
+| unit | nada | — |
+| integration | analytics/agent DB | `integration` |
+| agent (e2e/eval) | DB + LLM + `RUN_AGENT=1` | `agent` |
+
+Unitarios cubren (76 tests): validador SQL (18 casos), observabilidad
+(timings, tokens, coste), export CSV/XLSX, sugerencia de charts,
+clasificador SQL|MCP (21 casos), servers MCP (glossary resources +
+explorer tools con pool mockeado), cliente MCP, servidor MCP export
+(`ask_analytics`), cliente HTTP del chatbot.
 
 ### Tests con modelo local (Ollama, sin API key)
 
-`docker compose up` ya descarga y verifica los modelos de Ollama
-automáticamente (`ollama-init` con healthcheck y smoke test). Una vez
-levantado el stack, correr los tests e2e contra el modelo local:
-
 ```bash
-# Linux/macOS (Makefile)
-make test-local
-# o todo en uno (levanta ollama + DBs, corre tests, baja al finish):
+# Linux/macOS
 make test-local-up
 
-# Windows (PowerShell)
+# Windows
 .\scripts\test-local.ps1 -Up -Down
-# o si el stack ya esta levantado:
-.\scripts\test-local.ps1
 ```
-
-Esto setea `ANALYST_MODEL=analyst-local-fast` (qwen2.5:1.5b) y
-`RUN_AGENT=1`. El `conftest` probea `http://localhost:11434/api/tags`
-para confirmar que el modelo esté cargado antes de correr (skip limpio
-si no lo está).
 
 ---
 
@@ -285,15 +452,19 @@ Correlacionado con `analytics_query_log` (`request_id`).
 
 Definidas en `.env` (ver `.env.example`):
 
-| Variable                  | Descripción                              |
-|---------------------------|------------------------------------------|
-| `OPENAI_API_KEY`          | API key de OpenAI (consumo vía LiteLLM)  |
-| `LITELLM_MASTER_KEY`      | Master key del gateway LiteLLM           |
-| `LITELLM_BASE_URL`        | URL del gateway (interno en compose)     |
-| `AGENT_DATABASE_URL`      | PostgreSQL del agente (checkpoints+audit)|
-| `ANALYTICS_DATABASE_URL`  | PostgreSQL analítica (rol read-only)     |
-| `REDIS_URL`               | URL de Redis                             |
-| `ANALYST_MODEL`           | Alias de modelo (`analyst-smart` por defecto; ver Ollama) |
+| Variable | Descripción |
+|----------|-------------|
+| `OPENAI_API_KEY` | API key de OpenAI (consumo vía LiteLLM) |
+| `LITELLM_MASTER_KEY` | Master key del gateway LiteLLM |
+| `LITELLM_BASE_URL` | URL del gateway (interno en compose) |
+| `AGENT_DATABASE_URL` | PostgreSQL del agente (checkpoints+audit) |
+| `ANALYTICS_DATABASE_URL` | PostgreSQL analítica (rol read-only) |
+| `REDIS_URL` | URL de Redis |
+| `ANALYST_MODEL` | Alias de modelo (`analyst-smart` por defecto; ver Ollama) |
+| `MCP_GLOSSARY_URL` | URL del server MCP glosario (`/mcp`) |
+| `MCP_EXPLORER_URL` | URL del server MCP explorer (`/mcp`) |
+| `MCP_FILESYSTEM_URL` | URL del server MCP filesystem (opcional) |
+| `MCP_WEBSEARCH_URL` | URL del server MCP websearch (opcional) |
 
 ---
 
@@ -305,30 +476,63 @@ alternativos. Para usarlos, define en `.env`:
 ```env
 ANALYST_MODEL=analyst-local        # qwen2.5:7b  (capaz)
 # o
-ANALYST_MODEL=analyst-local-fast   # qwen2.5:1.5b (ligero)
+ANALYST_MODEL=analyst-local-fast   # qwen2.5:1.5b (ligero, recomendado para tests)
 ```
 
 `docker compose up --build` levanta además `ollama-init`, que descarga los
 modelos la **primera vez** (puede tardar varios minutos según conexión).
-Las llamadas al agente fallarán con 404 hasta que los modelos estén listos;
-luego funcionan sin `OPENAI_API_KEY`.
+Cadena robusta: healthcheck → pull → smoke → litellm → api (cero 404s).
 
 > Nota: en CPU los modelos grandes son lentos. Para GPU, monta el dispositivo
-> en el servicio `ollama` del compose (ver [docs de Ollama](https://github.com/ollama/ollama)).
+> en el servicio `ollama` del compose.
 
 Aliases disponibles (definidos en `litellm/config.yaml`):
 
-| Alias                | Backend          | Notas                          |
-|----------------------|------------------|--------------------------------|
-| `analyst-smart`      | OpenAI gpt-5     | default, requiere API key      |
-| `analyst-fast`       | OpenAI gpt-5-mini| rápido, requiere API key        |
-| `analyst-local`      | Ollama qwen2.5:7b | local, sin coste              |
-| `analyst-local-fast` | Ollama qwen2.5:1.5b | local, ligero               |
+| Alias | Backend | Notas |
+|-------|---------|-------|
+| `analyst-smart` | OpenAI gpt-5 | default, requiere API key |
+| `analyst-fast` | OpenAI gpt-5-mini | rápido, requiere API key |
+| `analyst-local` | Ollama qwen2.5:7b | local, sin coste |
+| `analyst-local-fast` | Ollama qwen2.5:1.5b | local, ligero |
+
+---
+
+## Deploy en Huawei Cloud CCE
+
+Manifests en `deploy/cce/` (14 archivos numerados):
+
+```bash
+# 1. Configurar deploy/cce/.env (región, org, SWR_PASSWORD)
+# 2. Construir y publicar imagen
+SWR_PASSWORD=<token> make image
+# 3. Deployar
+make deploy-cce
+# 4. Obtener EIP del ELB
+kubectl get svc api-elb -n data-analyst-agent
+```
+
+ELB auto-creado (`17-elb.yaml`) con EIP público + health check contra
+`/health`. PVCs `csi-disk` (EVS). Cadena de arranque con healthchecks
+y gates (`ollama-init` debe completar antes de que `litellm` arranque).
+
+---
+
+## Nix (dev shell alternativo)
+
+```bash
+nix develop
+# Python 3.12 + PostgreSQL 16 + Redis + venv con requirements
+```
 
 ---
 
 ## Plan de acción
 
 El desarrollo sigue `action_plan.md`. Estado:
-Fases 1–18 completadas (MVP + conversacional + confiabilidad).
+
+- **Fases 1–18** completadas (MVP + conversacional + confiabilidad).
+- **Etapa D**: export CSV/Excel + charts ✅ (rama `etapa-d`).
+- **MCP + Chatbot**: servers propios, agente cliente/servidor MCP,
+  Chainlit, deploy CCE ✅ (rama `ollama-service`).
+
 Ver `git log` para el histórico por etapa.
