@@ -21,3 +21,7 @@ pyyaml
 # MCP (Model Context Protocol)
 mcp>=1.29
 langchain-mcp-adapters
+
+# Export & dashboards
+pandas
+openpyxl

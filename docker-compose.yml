@@ -31,6 +31,7 @@ services:
     volumes:
       - app_postgres_data:/var/lib/postgresql/data
       - ./database/agent/ddl/001_audit.sql:/docker-entrypoint-initdb.d/001_audit.sql
+      - ./database/agent/ddl/002_dashboards.sql:/docker-entrypoint-initdb.d/002_dashboards.sql
 
   app-analytics:
     image: postgres:16
