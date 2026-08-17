@@ -1,8 +1,7 @@
-.PHONY: help up down ollama-up ollama-logs test test-local test-local-up test-unit pr
+.PHONY: help up down ollama-up ollama-logs test test-local test-local-up test-unit
 
 ANALYST_MODEL ?= analyst-local-fast
 PY ?= python3
-REMOTE ?= origin
 
 help:
 	@echo "Targets:"
@@ -14,7 +13,6 @@ help:
 	@echo "  test-unit     - solo unitarios (sin Docker)"
 	@echo "  test-local    - pytest con modelo local (requiere DB levantada + ollama-up)"
 	@echo "  test-local-up - levanta ollama + DBs, corre pytest con modelo local, baja al finish"
-	@echo "  pr            - pushea la rama actual y abre el PR en GitHub (sin gh)"
 
 up:
 	docker compose up --build
@@ -47,15 +45,3 @@ test-local-up: ollama-up
 	-ANALYST_MODEL=$(ANALYST_MODEL) RUN_AGENT=1 $(PY) -m pytest tests -q
 	@echo ">> bajando stack temporal..."
 	docker compose down
-
-pr:
-	@echo ">> pusheando rama actual..."
-	git push -u $(REMOTE) $$(git rev-parse --abbrev-ref HEAD)
-	@REPO=$$(git remote get-url $(REMOTE) \
-		| sed -E 's#.*github.com[:/]##; s#\.git$$##'); \
-	BRANCH=$$(git rev-parse --abbrev-ref HEAD); \
-	URL="https://github.com/$$REPO/pull/new/$$BRANCH"; \
-	echo ">> abriendo $$URL"; \
-	if command -v xdg-open >/dev/null 2>&1; then xdg-open $$URL; \
-	elif command -v open >/dev/null 2>&1; then open $$URL; \
-	else echo ">> abre manualmente: $$URL"; fi
