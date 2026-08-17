@@ -30,8 +30,22 @@ FORBIDDEN_SCHEMAS = {
     "information_schema",
 }
 
+ALLOWED_TABLES = {
+    "customers",
+    "orders",
+    "products",
+    "order_items",
+    "completed_orders",
+    "customer_revenue",
+    "product_sales",
+}
+
 
 def validate_ast(expression: exp.Expression) -> tuple[bool, str | None]:
+
+    cte_names = {c.alias_or_name for c in expression.find_all(exp.CTE)}
+
+    found_tables: set[str] = set()
 
     for node in expression.walk():
 
@@ -54,6 +68,17 @@ def validate_ast(expression: exp.Expression) -> tuple[bool, str | None]:
                     False,
                     f"Acceso no permitido al esquema: {schema_name}",
                 )
+
+            table_name = (node.name or "").lower()
+            if table_name and table_name not in cte_names and table_name not in found_tables:
+                found_tables.add(table_name)
+
+    for table in found_tables:
+        if table not in ALLOWED_TABLES:
+            return (
+                False,
+                f"Tabla no permitida: {table}. Solo se permiten: {', '.join(sorted(ALLOWED_TABLES))}.",
+            )
 
     return True, None
 
@@ -106,7 +131,6 @@ async def validate_sql(state):
             "validation_error": error,
         }
 
-    # Debe existir un SELECT en el árbol.
     if not expression.find(exp.Select):
 
         return {
