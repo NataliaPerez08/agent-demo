@@ -421,3 +421,219 @@ ELB auto-creado con EIP público + health check contra `/health`.
 | Dev shell | Nix flake (Python 3.12 + PostgreSQL 16 + Redis) |
 | Deploy | Docker Compose, Kubernetes (Huawei Cloud CCE) |
 | Tests | pytest, pytest-asyncio |
+
+---
+
+## Diagramas Mermaid
+
+### Arquitectura general
+
+```mermaid
+graph TB
+    User([👤 Usuario])
+    Chatbot["🤖 Chainlit Chatbot<br/>:8001"]
+    MCPClient(["🖥️ Cliente MCP<br/>(Claude Desktop)"])
+
+    subgraph API["FastAPI + LangGraph :8000"]
+        Chat["POST /chat"]
+        Export["GET /export<br/>CSV / XLSX"]
+        MCPServer["POST /mcp<br/>ask_analytics()"]
+        Agent["LangGraph Agent<br/>(grafo híbrido)"]
+        Chat --> Agent
+        MCPServer --> Agent
+    end
+
+    subgraph Models["Modelos"]
+        LiteLLM["LiteLLM Gateway<br/>:4000"]
+        Ollama["Ollama<br/>:11434<br/>qwen2.5:7b / 1.5b"]
+        OpenAI["OpenAI<br/>gpt-5 / gpt-5-mini"]
+    end
+
+    subgraph Data["Persistencia"]
+        AgentDB[("PostgreSQL agent<br/>:5432<br/>checkpoints + auditoría")]
+        AnalyticsDB[("PostgreSQL analytics<br/>:5433<br/>datos read-only")]
+        Redis[("Redis<br/>:6379<br/>sesión + caché + rate limit")]
+    end
+
+    subgraph MCPServers["Servidores MCP"]
+        Glossary["Glossary :8100<br/>resources MCP"]
+        Explorer["Explorer :8101<br/>tools MCP"]
+        Filesystem["Filesystem :8102"]
+        WebSearch["WebSearch :8103"]
+    end
+
+    User -->|HTTP/WebSocket| Chatbot
+    Chatbot -->|POST /chat| Chat
+    MCPClient -->|/mcp| MCPServer
+
+    Agent -->|LLM| LiteLLM
+    LiteLLM --> Ollama
+    LiteLLM --> OpenAI
+
+    Agent -->|read-only| AnalyticsDB
+    Agent -->|checkpoints| AgentDB
+    Agent -->|caché/sesión| Redis
+    Agent -->|tools MCP| Glossary
+    Agent -->|tools MCP| Explorer
+    Agent -.->|tools MCP| Filesystem
+    Agent -.->|tools MCP| WebSearch
+```
+
+### Flujo del grafo híbrido (SQL | MCP)
+
+```mermaid
+flowchart TD
+    START([START]) --> Schema["retrieve_schema<br/>caché Redis + FKs"]
+    Schema --> Classify{"classify_question<br/>(heurística keywords)"}
+
+    Classify -->|"sql (analytics)"| GenSQL["generate_sql<br/>LLM → SQL"]
+    Classify -->|"mcp (externo)"| AgentTools["agent_with_tools<br/>LLM + bind_tools"]
+
+    GenSQL --> Validate["validate_sql<br/>SQLGlot AST"]
+    Validate -->|"válido"| Execute["execute_sql<br/>pool read-only<br/>timeout 5s<br/>MAX_ROWS 100"]
+    Validate -->|"inválido"| CheckErr{"¿CANNOT<br/>ANSWER?"}
+    CheckErr -->|"sí"| Fail["failure"]
+    CheckErr -->|"no"| CheckRetry{"retry < 2?"}
+    CheckRetry -->|"sí"| Fix["fix_sql"]
+    Fix --> Validate
+    CheckRetry -->|"no"| Fail
+
+    Execute -->|"ok"| Analyze["analyze_results<br/>LLM analiza"]
+    Execute -->|"error"| CheckRetryExec{"retry < 2?"}
+    CheckRetryExec -->|"sí"| Fix
+    CheckRetryExec -->|"no"| Fail
+
+    Analyze --> Answer["generate_answer<br/>LLM redacta respuesta"]
+    Answer --> END1([END])
+
+    Fail --> END2([END])
+
+    AgentTools -->|"tool_calls"| MCPTools["mcp_tools<br/>ToolNode ejecuta"]
+    MCPTools --> AgentTools
+    AgentTools -->|"sin tool_calls"| MCPAnswer["mcp_answer<br/>extrae respuesta"]
+    MCPAnswer --> END3([END])
+
+    style Classify fill:#f9f,stroke:#333,stroke-width:2px
+    style Validate fill:#bbf,stroke:#333,stroke-width:2px
+    style Execute fill:#bfb,stroke:#333,stroke-width:2px
+    style AgentTools fill:#fbf,stroke:#333,stroke-width:2px
+    style Fail fill:#fbb,stroke:#333,stroke-width:2px
+```
+
+### Seguridad SQL (capas)
+
+```mermaid
+flowchart TD
+    LLM["1. LLM<br/>prompt read-only"]
+    AST["2. SQLGlot AST validator<br/>bloquea DDL/DML<br/>pg_sleep, dblink<br/>pg_catalog, information_schema<br/>single statement, requiere SELECT"]
+    Whitelist["3. Schema whitelist<br/>solo tablas del schema public"]
+    Conn["4. Conexión read-only<br/>SET LOCAL statement_timeout"]
+    Role["5. Rol PostgreSQL<br/>analyst_agent (read-only)"]
+    Limits["6. statement_timeout 5s<br/>MAX_ROWS 100"]
+
+    LLM --> AST --> Whitelist --> Conn --> Role --> Limits
+
+    style LLM fill:#e1f5fe
+    style AST fill:#bbdefb
+    style Whitelist fill:#90caf9
+    style Conn fill:#64b5f6
+    style Role fill:#42a5f5
+    style Limits fill:#2196f3,color:#fff
+```
+
+### Deploy CCE (topología Kubernetes)
+
+```mermaid
+graph LR
+    subgraph External["Exterior"]
+        EIP["🌐 EIP público"]
+    end
+
+    subgraph CCE["Cluster CCE — namespace: data-analyst-agent"]
+        ELB["ELB<br/>(LoadBalancer)"]
+
+        subgraph APIPods["API Pods (2 réplicas)"]
+            API1["api pod 1<br/>:8000"]
+            API2["api pod 2<br/>:8000"]
+        end
+
+        ChatbotPod["chatbot pod<br/>:8001"]
+
+        subgraph MCP["MCP Pods"]
+            GlossaryPod["mcp-glossary<br/>:8100"]
+            ExplorerPod["mcp-explorer<br/>:8101"]
+        end
+
+        LiteLLMPod["litellm<br/>:4000"]
+        OllamaPod["ollama<br/>:11434<br/>+ PVC 20Gi"]
+        InitJob["ollama-init<br/>(Job)"]
+
+        subgraph DBs["Bases de datos"]
+            AgentDBPod[("postgres-agent<br/>StatefulSet<br/>+ PVC 5Gi")]
+            AnalyticsDBPod[("postgres-analytics<br/>StatefulSet<br/>+ PVC 10Gi")]
+        end
+
+        RedisPod["redis<br/>:6379"]
+    end
+
+    EIP --> ELB
+    ELB --> API1
+    ELB --> API2
+    API1 --> LiteLLMPod
+    API2 --> LiteLLMPod
+    LiteLLMPod --> OllamaPod
+    InitJob --> OllamaPod
+    API1 --> AgentDBPod
+    API1 --> AnalyticsDBPod
+    API1 --> RedisPod
+    API1 --> GlossaryPod
+    API1 --> ExplorerPod
+    ChatbotPod --> API1
+    ChatbotPod --> API2
+
+    style EIP fill:#fff9c4
+    style ELB fill:#ffecb3
+    style InitJob fill:#ffe0b2
+    style OllamaPod fill:#e8f5e9
+```
+
+### Flujo de datos del chatbot (secuencia)
+
+```mermaid
+sequenceDiagram
+    participant U as Usuario
+    participant C as Chainlit :8001
+    participant A as API :8000
+    participant G as LangGraph Agent
+    participant DB as Analytics DB
+    participant L as LiteLLM
+    participant R as Redis
+
+    U->>C: Escribe pregunta
+    C->>A: POST /chat {question, user_id}
+    A->>R: GET session:{user_id}
+    R-->>A: thread_id (o nuevo UUID)
+    A->>G: ainvoke(initial_state, thread_id)
+    G->>R: GET schema:analytics (caché)
+    R-->>G: schema_context (o miss)
+    G->>G: classify_question → "sql"
+    G->>L: generate_sql (LLM)
+    L-->>G: SQL
+    G->>G: validate_sql (SQLGlot AST)
+    G->>DB: execute_sql (read-only, timeout 5s)
+    DB-->>G: query_result
+    G->>R: SET result:{thread_id} (TTL 1h)
+    G->>L: analyze_results (LLM)
+    G->>L: generate_answer (LLM)
+    G-->>A: {answer, sql, chart}
+    A->>R: SET session:{user_id} (TTL 24h)
+    A->>A: log_query (auditoría agent DB)
+    A-->>C: {thread_id, answer, sql, chart}
+    C->>U: Muestra respuesta + SQL + chart
+    U->>C: Click "Exportar CSV"
+    C->>A: GET /export?thread_id={id}&fmt=csv
+    A->>R: GET result:{thread_id}
+    R-->>A: rows (cached)
+    A-->>C: CSV stream
+    C->>U: Descarga CSV
+```
