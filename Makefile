@@ -1,5 +1,6 @@
 .PHONY: help up down ollama-up ollama-logs test test-local test-local-up test-unit \
-       image-build image-push image deploy-cce chatbot-up chatbot-logs
+       image-build image-push image deploy-cce chatbot-up chatbot-logs \
+       mcp-up mcp-logs
 
 ANALYST_MODEL ?= analyst-local-fast
 PY ?= python3
@@ -26,6 +27,8 @@ help:
 	@echo "  test-local-up - levanta ollama + DBs, corre pytest con modelo local, baja al finish"
 	@echo "  chatbot-up    - levanta solo el chatbot Chainlit (requiere API corriendo)"
 	@echo "  chatbot-logs  - logs del chatbot"
+	@echo "  mcp-up        - levanta los servidores MCP (glossary + explorer)"
+	@echo "  mcp-logs      - logs de los servidores MCP"
 	@echo ""
 	@echo "Imagen Docker (SWR Huawei Cloud):"
 	@echo "  image-build   - construye la imagen (IMAGE=$(IMAGE))"
@@ -76,6 +79,16 @@ chatbot-up:
 chatbot-logs:
 	docker compose logs -f chatbot
 
+# ---- Servidores MCP ----
+
+mcp-up:
+	docker compose up -d mcp-glossary mcp-explorer
+	@echo ">> MCP glossary en http://localhost:8100/mcp"
+	@echo ">> MCP explorer en http://localhost:8101/mcp"
+
+mcp-logs:
+	docker compose logs -f mcp-glossary mcp-explorer
+
 # ---- Imagen Docker ----
 
 image-build:
@@ -111,9 +124,12 @@ deploy-cce:
 	@echo ">> aplicando job de init de ollama..."
 	kubectl apply -f deploy/cce/14-ollama-init-job.yaml
 	kubectl wait job/ollama-init -n data-analyst-agent --for=condition=complete --timeout=600s
-	@echo ">> aplicando litellm y api..."
+	@echo ">> aplicando litellm, MCP servers y api..."
 	kubectl apply -f deploy/cce/15-litellm.yaml
+	kubectl apply -f deploy/cce/18-mcp-glossary.yaml
+	kubectl apply -f deploy/cce/19-mcp-explorer.yaml
 	kubectl apply -f deploy/cce/16-api.yaml
 	kubectl apply -f deploy/cce/17-elb.yaml
+	kubectl apply -f deploy/cce/20-chatbot.yaml
 	@echo ">> deploy aplicado. EIP del ELB:"
 	kubectl get svc api-elb -n data-analyst-agent -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "(pendiente)"
