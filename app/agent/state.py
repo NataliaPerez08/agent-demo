@@ -10,6 +10,10 @@ class AnalystState(TypedDict, total=False):
 
     schema_context: str
 
+    question_type: str
+
+    messages: list[Any]
+
     generated_sql: str
 
     sql_valid: bool
