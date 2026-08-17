@@ -8,8 +8,21 @@ os.environ.setdefault("LITELLM_MASTER_KEY", "sk-local-secret")
 os.environ.setdefault("AGENT_DATABASE_URL", "postgresql://agent:agent@localhost:5432/agent")
 os.environ.setdefault("ANALYTICS_DATABASE_URL", "postgresql://analyst_agent:analyst@localhost:5433/analytics")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
+os.environ.setdefault("ANALYST_MODEL", "analyst-smart")
+
+import json
+import urllib.request
 
 import pytest
+
+
+# Alias de LiteLLM -> tag de Ollama.
+OLLAMA_TAG_BY_ALIAS = {
+    "analyst-local": "qwen2.5:7b",
+    "analyst-local-fast": "qwen2.5:1.5b",
+}
+
+OLLAMA_HOST_DEFAULT = "http://localhost:11434"
 
 
 async def _can_connect() -> bool:
@@ -31,7 +44,45 @@ async def _can_connect() -> bool:
             pass
 
 
+def _local_model_ready() -> bool:
+    """True si el modelo local configurado esta cargado en Ollama.
+
+    Probe via /api/tags (stdlib, sin dependencias). Tolerante: cualquier
+    fallo de conexion devuelve False.
+    """
+
+    model = os.environ.get("ANALYST_MODEL", "")
+    tag = OLLAMA_TAG_BY_ALIAS.get(model)
+
+    if not tag:
+        return False
+
+    host = os.environ.get("OLLAMA_HOST", OLLAMA_HOST_DEFAULT)
+
+    try:
+        with urllib.request.urlopen(f"{host}/api/tags", timeout=2) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+    except Exception:
+        return False
+
+    loaded = {m.get("name", "") for m in payload.get("models", [])}
+    return any(tag in name for name in loaded)
+
+
+def _is_local_model() -> bool:
+    return os.environ.get("ANALYST_MODEL", "").startswith("analyst-local")
+
+
 def _llm_ready() -> bool:
+    """True si el LLM configurado esta listo para usarse.
+
+    - Modelos locales (analyst-local*): probea Ollama via /api/tags.
+    - Modelos OpenAI: requiere OPENAI_API_KEY no dummy.
+    """
+
+    if _is_local_model():
+        return _local_model_ready()
+
     key = os.environ.get("OPENAI_API_KEY", "")
     return bool(key) and key != "TU_API_KEY"
 
@@ -91,6 +142,8 @@ async def full_stack():
     if os.environ.get("RUN_AGENT") != "1":
         pytest.skip("set RUN_AGENT=1 para tests end-to-end con LLM")
     if not _llm_ready():
+        if _is_local_model():
+            pytest.skip("modelo local no cargado (levantar ollama + ollama-init)")
         pytest.skip("OPENAI_API_KEY no configurada (dummy detectado)")
 
     from app.infrastructure.postgres import open_database, close_database
@@ -115,6 +168,8 @@ async def persistent_graph():
     if os.environ.get("RUN_AGENT") != "1":
         pytest.skip("set RUN_AGENT=1 para tests de memoria")
     if not _llm_ready():
+        if _is_local_model():
+            pytest.skip("modelo local no cargado (levantar ollama + ollama-init)")
         pytest.skip("OPENAI_API_KEY no configurada (dummy detectado)")
 
     from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver

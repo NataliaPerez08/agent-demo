@@ -50,7 +50,8 @@ services:
     env_file:
       - .env
     depends_on:
-      - ollama
+      ollama-init:
+        condition: service_completed_successfully
 
   ollama:
     image: ollama/ollama:latest
@@ -59,21 +60,34 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
 
   ollama-init:
     image: ollama/ollama:latest
     container_name: analyst-ollama-init
     depends_on:
-      - ollama
+      ollama:
+        condition: service_healthy
     environment:
       OLLAMA_HOST: http://ollama:11434
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
         echo ">> descargando modelos de Ollama (primera vez puede tardar)..."
+        # Modelo ligero primero (tests); el grande despues.
         ollama pull qwen2.5:1.5b
         ollama pull qwen2.5:7b
-        echo ">> modelos listos"
+        # Smoke: verificar que el modelo de tests este cargado.
+        if ! ollama list | grep -q 'qwen2.5:1.5b'; then
+          echo "!! ERROR: qwen2.5:1.5b no aparece en ollama list"
+          exit 1
+        fi
+        echo ">> modelos listos y verificados"
     restart: "no"
 
   analytics:
