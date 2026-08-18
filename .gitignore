@@ -3,3 +3,7 @@ __pycache__/
 *.pyo
 .venv/
 .chainlit/
+
+# Secrets — nunca commitear claves reales.
+.env
+.env.local
