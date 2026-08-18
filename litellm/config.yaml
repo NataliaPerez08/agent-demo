@@ -23,6 +23,10 @@ litellm_settings:
   # Tracking de spend y logs en la DB propia de LiteLLM.
   store_prompts_in_spend_logs: true
   request_timeout: 120
+  # gpt-5 no soporta temperature (solo temperature=1). Al habilitar
+  # drop_params, LiteLLM descarta los params no soportados por el
+  # proveedor (p.ej. temperature=0.0) en vez de fallar con 400.
+  drop_params: true
 
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
