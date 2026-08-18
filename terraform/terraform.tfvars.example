@@ -1,0 +1,33 @@
+# Copiar a terraform.tfvars y rellenar con valores reales.
+
+# ---- Huawei Cloud IAM ----
+# access_key = "TU_ACCESS_KEY"
+# secret_key = "TU_SECRET_KEY"
+region = "cn-north-4"
+
+# ---- SWR ----
+swr_org    = "mi-org"
+image_tag  = "latest"
+
+# ---- CCE ----
+cce_cluster_name    = "analyst-agent"
+cce_cluster_version = "v1.28"
+cce_flavor          = "s6.large.2"
+node_flavor         = "s6.large.2"
+node_count          = 2
+node_disk_size      = 50
+
+# ---- Networking ----
+vpc_cidr       = "10.0.0.0/16"
+subnet_cidr    = "10.0.1.0/24"
+subnet_gateway = "10.0.1.1"
+
+# ---- ELB ----
+elb_bandwidth = 5
+
+# ---- App ----
+namespace       = "data-analyst-agent"
+analyst_model   = "analyst-local-fast"
+openai_api_key  = ""               # vacio si usa Ollama local
+litellm_master_key = "sk-local-secret"
+api_replicas    = 2

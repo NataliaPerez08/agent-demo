@@ -1,6 +1,6 @@
 .PHONY: help up down ollama-up ollama-logs test test-local test-local-up test-unit \
        image-build image-push image deploy-cce chatbot-up chatbot-logs \
-       mcp-up mcp-logs
+       mcp-up mcp-logs tf-init tf-plan tf-apply tf-destroy
 
 ANALYST_MODEL ?= analyst-local-fast
 PY ?= python3
@@ -37,6 +37,12 @@ help:
 	@echo ""
 	@echo "Deploy CCE:"
 	@echo "  deploy-cce    - aplica manifests de deploy/cce/ en orden"
+	@echo ""
+	@echo "Terraform (Huawei Cloud CCE):"
+	@echo "  tf-init       - terraform init"
+	@echo "  tf-plan       - terraform plan"
+	@echo "  tf-apply      - terraform apply"
+	@echo "  tf-destroy    - terraform destroy"
 
 up:
 	docker compose up --build
@@ -134,3 +140,17 @@ deploy-cce:
 	kubectl apply -f deploy/cce/20-chatbot.yaml
 	@echo ">> deploy aplicado. EIP del ELB:"
 	kubectl get svc api-elb -n data-analyst-agent -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "(pendiente)"
+
+# ---- Terraform (Huawei Cloud CCE) ----
+
+tf-init:
+	cd terraform && terraform init
+
+tf-plan:
+	cd terraform && terraform plan
+
+tf-apply:
+	cd terraform && terraform apply -auto-approve
+
+tf-destroy:
+	cd terraform && terraform destroy -auto-approve

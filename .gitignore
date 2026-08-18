@@ -7,3 +7,11 @@ __pycache__/
 # Secrets — nunca commitear claves reales.
 .env
 .env.local
+
+# Terraform — state y temporales.
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/*.tfplan
+terraform/.terraform.lock.hcl
+terraform/terraform.tfvars
