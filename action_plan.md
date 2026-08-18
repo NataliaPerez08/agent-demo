@@ -14,7 +14,7 @@ Usuario
    ▼       ▼
 FastAPI + LangGraph (:8000)
    │
-   ├──► LiteLLM (:4000) ──► OpenAI / Ollama (:11434)
+   ├──► LiteLLM (:4000) ──► MaaS Huawei / Ollama (:11434)
    │
    ├──► PostgreSQL agent (:5432)    checkpoints + auditoría
    ├──► PostgreSQL analytics (:5433) datos read-only
@@ -33,7 +33,7 @@ FastAPI + LangGraph (:8000)
 
 * [x] FastAPI como API.
 * [x] LangChain / LangGraph como orquestador (grafo híbrido SQL | MCP).
-* [x] LiteLLM como gateway de modelos (OpenAI + Ollama).
+* [x] LiteLLM como gateway de modelos (MaaS Huawei + Ollama).
 * [x] PostgreSQL para persistencia y datos analíticos.
 * [x] Redis para sesiones y cache.
 * [x] Separación entre base del agente y base analítica.
@@ -164,7 +164,7 @@ agent-demo/
 │   └── README.md                   Guía de manifests
 │
 ├── eval/dataset.yaml               dataset de evaluación (6 casos)
-├── litellm/config.yaml             modelos (OpenAI + Ollama) + DB/Redis propios
+├── litellm/config.yaml             modelos (MaaS + Ollama) + DB/Redis propios
 ├── tests/  (unit, integration, agent)
 ├── scripts/test-local.ps1         Tests con modelo local (Windows)
 ├── Makefile                        targets: up/down/test/image/deploy-cce/mcp/chatbot

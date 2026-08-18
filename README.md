@@ -9,7 +9,7 @@ CSV/Excel + sugerencia de charts.
 - **API**: FastAPI + LangGraph (grafo híbrido SQL | MCP)
 - **Chatbot**: Chainlit (:8001) con streaming, SQL display y export
 - **MCP**: bidireccional — consume 4 servers MCP y expone `ask_analytics`
-- **Modelos**: LiteLLM (gateway a OpenAI gpt-5 / gpt-5-mini + Ollama local)
+- **Modelos**: LiteLLM (gateway a MaaS Huawei GLM-5.2 + Ollama local)
 - **Datos analíticos**: PostgreSQL (rol read-only `analyst_agent`)
 - **Memoria / checkpoints**: PostgreSQL (agent DB)
 - **Sesiones / caché / rate limit**: Redis
@@ -74,18 +74,18 @@ question → retrieve_schema → classify → generate_sql → validate_sql
 ## Requisitos
 
 - Docker + Docker Compose
-- `OPENAI_API_KEY` válida **o** `ANALYST_MODEL=analyst-local-fast` (Ollama, sin API key)
+- `MAAS_API_KEY` válida **o** `ANALYST_MODEL=analyst-local-fast` (Ollama, sin API key)
 
 ---
 
 ## Puesta en marcha
 
-1. Copiar variables y setear la API key de OpenAI (o usar modelo local):
+1. Copiar variables y setear la API key de MaaS (o usar modelo local):
 
    ```bash
    cp .env.example .env
    # editar .env:
-   #   OPENAI_API_KEY=sk-...         (o dejar TU_API_KEY si usas Ollama)
+   #   MAAS_API_KEY=sk-...           (o dejar TU_API_KEY si usas Ollama)
    #   ANALYST_MODEL=analyst-local-fast  (para modelo local sin coste)
    ```
 
@@ -314,7 +314,7 @@ deploy/cce/                     Manifests Kubernetes (Huawei Cloud CCE)
 └── create-configmaps.sh        Genera ConfigMap SQL analytics
 
 eval/dataset.yaml               dataset de evaluación (6 casos)
-litellm/config.yaml             modelos (OpenAI + Ollama)
+litellm/config.yaml             modelos (MaaS + Ollama)
 Makefile                        targets: up/down/test/image/deploy-cce/mcp/chatbot
 flake.nix                       dev shell (Nix)
 tests/  (unit, integration, agent)
@@ -390,7 +390,7 @@ Para activarlos (gated, evitan coste accidental):
 
 ```bash
 $env:RUN_AGENT="1"           # PowerShell  (export RUN_AGENT=1 en *nix)
-$env:OPENAI_API_KEY="sk-..."
+$env:MAAS_API_KEY="sk-..."
 py -m pytest tests -q
 ```
 
@@ -454,7 +454,7 @@ Definidas en `.env` (ver `.env.example`):
 
 | Variable | Descripción |
 |----------|-------------|
-| `OPENAI_API_KEY` | API key de OpenAI (consumo vía LiteLLM) |
+| `MAAS_API_KEY` | API key de Huawei Cloud MaaS (consumo vía LiteLLM) |
 | `LITELLM_MASTER_KEY` | Master key del gateway LiteLLM |
 | `LITELLM_BASE_URL` | URL del gateway (interno en compose) |
 | `AGENT_DATABASE_URL` | PostgreSQL del agente (checkpoints+audit) |
@@ -490,8 +490,8 @@ Aliases disponibles (definidos en `litellm/config.yaml`):
 
 | Alias | Backend | Notas |
 |-------|---------|-------|
-| `analyst-smart` | OpenAI gpt-5 | default, requiere API key |
-| `analyst-fast` | OpenAI gpt-5-mini | rápido, requiere API key |
+| `analyst-smart` | MaaS GLM-5.2 | default, requiere API key |
+| `analyst-fast` | MaaS GLM-5.2 | rápido, requiere API key |
 | `analyst-local` | Ollama qwen2.5:7b | local, sin coste |
 | `analyst-local-fast` | Ollama qwen2.5:1.5b | local, ligero |
 
@@ -516,7 +516,7 @@ Kubernetes). Para la guía detallada de cada manifest, ver
 cd deploy/cce
 cp .env.example .env     # si existe
 # editar .env / 01-secrets.yaml:
-#   OPENAI_API_KEY       (o usar analyst-local-fast sin key)
+#   MAAS_API_KEY         (o usar analyst-local-fast sin key)
 #   SWR_REGION, SWR_ORG  (región y organización de SWR)
 ```
 
@@ -643,7 +643,7 @@ ELB (EIP público) ──► api (x2 réplicas)
   Ollama para el node pool GPU de CCE.
 - **Chatbot público**: añadir un segundo ELB o Ingress para :8001.
 - **Modelo**: por defecto usa Ollama local (`analyst-local-fast`).
-  Para OpenAI, reemplazar `OPENAI_API_KEY` en `app-secrets`.
+  Para MaaS, reemplazar `MAAS_API_KEY` en `app-secrets`.
 
 ---
 

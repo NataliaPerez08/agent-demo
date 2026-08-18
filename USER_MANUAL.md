@@ -356,12 +356,12 @@ curl -o resultados.xlsx \
 
 El agente soporta dos backends de modelos:
 
-### OpenAI (requiere API key)
+### Huawei Cloud MaaS (requiere API key)
 
 | Alias | Modelo | Uso |
 |-------|--------|-----|
-| `analyst-smart` | gpt-5 | Default, máxima calidad |
-| `analyst-fast` | gpt-5-mini | Respuestas rápidas |
+| `analyst-smart` | GLM-5.2 | Default, máxima calidad |
+| `analyst-fast` | GLM-5.2 | Respuestas rápidas |
 
 ### Ollama (local, sin API key, sin coste)
 
@@ -375,7 +375,7 @@ El agente soporta dos backends de modelos:
 Edita el archivo `.env`:
 
 ```env
-# OpenAI (requiere API key)
+# Huawei Cloud MaaS (requiere API key)
 ANALYST_MODEL=analyst-smart
 
 # Ollama (sin coste)
@@ -392,8 +392,8 @@ docker compose restart api
 
 | Escenario | Modelo recomendado |
 |-----------|-------------------|
-| Producción con presupuesto | `analyst-smart` (gpt-5) |
-| Desarrollo rápido | `analyst-fast` (gpt-5-mini) |
+| Producción con presupuesto | `analyst-smart` (GLM-5.2) |
+| Desarrollo rápido | `analyst-fast` (GLM-5.2) |
 | Sin API key / sin coste | `analyst-local-fast` (qwen2.5:1.5b) |
 | Máxima calidad local | `analyst-local` (qwen2.5:7b) |
 | CPU únicamente | `analyst-local-fast` (1.5b es ligero) |
@@ -474,7 +474,7 @@ reutiliza el `thread_id` automáticamente.
 
 ### ¿Cuánto tarda una respuesta?
 
-- Con OpenAI gpt-5: 1-3 segundos típicamente
+- Con MaaS GLM-5.2: 1-3 segundos típicamente
 - Con Ollama qwen2.5:1.5b en CPU: 5-15 segundos
 - Con Ollama qwen2.5:7b en CPU: 15-60 segundos
 - Con GPU: significativamente más rápido
@@ -484,10 +484,10 @@ reutiliza el `thread_id` automáticamente.
 Sí. Los resultados de consultas idénticas se cachean en Redis por
 5 minutos. El schema se cachea por 1 hora.
 
-### ¿Puedo usar el agente sin OpenAI?
+### ¿Puedo usar el agente sin MaaS?
 
 Sí. Configura `ANALYST_MODEL=analyst-local-fast` en `.env` y usa
-Ollama. No necesitas `OPENAI_API_KEY`.
+Ollama. No necesitas una API key de MaaS.
 
 ### ¿Qué datos tiene la base?
 
@@ -548,7 +548,7 @@ docker compose logs api
 
 **Solución**:
 - Usa `analyst-local-fast` (qwen2.5:1.5b) en lugar de `analyst-local` (7b)
-- O cambia a `analyst-smart` (OpenAI) si tienes API key
+- O cambia a `analyst-smart` (MaaS) si tienes API key
 - O usa GPU (configura el node pool GPU en CCE)
 
 ### Error "No hay resultados recientes para este thread_id"

@@ -114,7 +114,7 @@ variable "analyst_model" {
 }
 
 variable "openai_api_key" {
-  description = "API key de OpenAI (vacia si usa Ollama local)"
+  description = "API key de Huawei Cloud MaaS (vacia si usa Ollama local)"
   type        = string
   default     = ""
   sensitive   = true

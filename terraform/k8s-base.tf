@@ -20,7 +20,7 @@ resource "kubernetes_secret" "app" {
   }
 
   string_data = {
-    OPENAI_API_KEY         = var.openai_api_key
+    MAAS_API_KEY         = var.openai_api_key
     LITELLM_MASTER_KEY     = var.litellm_master_key
     AGENT_DATABASE_URL     = "postgresql://agent:agent@app-postgres-agent:5432/agent"
     ANALYTICS_DATABASE_URL = "postgresql://analyst_agent:analyst@app-postgres-analytics:5432/analytics"
@@ -85,13 +85,15 @@ resource "kubernetes_config_map" "litellm" {
       model_list:
         - model_name: analyst-fast
           litellm_params:
-            model: openai/gpt-5-mini
-            api_key: os.environ/OPENAI_API_KEY
+            model: openai/glm-5.2
+            api_base: https://api-ap-southeast-1.modelarts-maas.com/openai/v1
+            api_key: os.environ/MAAS_API_KEY
 
         - model_name: analyst-smart
           litellm_params:
-            model: openai/gpt-5
-            api_key: os.environ/OPENAI_API_KEY
+            model: openai/glm-5.2
+            api_base: https://api-ap-southeast-1.modelarts-maas.com/openai/v1
+            api_key: os.environ/MAAS_API_KEY
 
         - model_name: analyst-local
           litellm_params:

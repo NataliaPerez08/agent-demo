@@ -64,7 +64,7 @@ posteriores se despliegan dentro de este namespace.
 
 | Secret | Contenido | Consumido por |
 |--------|-----------|---------------|
-| `app-secrets` | `OPENAI_API_KEY`, `LITELLM_MASTER_KEY`, `AGENT_DATABASE_URL`, `ANALYTICS_DATABASE_URL`, `REDIS_URL`, `ANALYST_MODEL`, `LITELLM_DATABASE_URL`, `LITELLM_REDIS_URL` | `api`, `litellm`, `mcp-explorer` (via `envFrom`) |
+| `app-secrets` | `MAAS_API_KEY`, `LITELLM_MASTER_KEY`, `AGENT_DATABASE_URL`, `ANALYTICS_DATABASE_URL`, `REDIS_URL`, `ANALYST_MODEL`, `LITELLM_DATABASE_URL`, `LITELLM_REDIS_URL` | `api`, `litellm`, `mcp-explorer` (via `envFrom`) |
 | `app-postgres-agent-credentials` | `POSTGRES_DB=agent`, `POSTGRES_USER=agent`, `POSTGRES_PASSWORD=agent` | `app-postgres-agent` (StatefulSet) |
 | `app-postgres-analytics-credentials` | `POSTGRES_DB=analytics`, `POSTGRES_USER=analytics_admin`, `POSTGRES_PASSWORD=analytics_admin` | `app-postgres-analytics` (StatefulSet) |
 | `litellm-db-credentials` | `POSTGRES_DB=litellm`, `POSTGRES_USER=litellm`, `POSTGRES_PASSWORD=litellm` | `litellm-db` (StatefulSet) |
@@ -270,8 +270,8 @@ Flujo:
 | **Puerto** | 4000 |
 | **Readiness** | HTTP `GET /health/liveness` (10s init, 5s period) |
 
-**Propósito**: **gateway de modelos** — unifica acceso a OpenAI
-(gpt-5, gpt-5-mini) y Ollama (qwen2.5) bajo aliases intercambiables.
+**Propósito**: **gateway de modelos** — unifica acceso a MaaS Huawei
+(GLM-5.2) y Ollama (qwen2.5) bajo aliases intercambiables.
 
 - Config via ConfigMap `litellm-config` montado en `/app/config.yaml`
   (subPath).
@@ -282,8 +282,8 @@ Flujo:
 - La app (`16-api`) lo consume via `LITELLM_BASE_URL=http://litellm:4000/v1`.
 
 Aliases expuestos:
-  - `analyst-smart` → `openai/gpt-5`
-  - `analyst-fast` → `openai/gpt-5-mini`
+  - `analyst-smart` → `MaaS GLM-5.2`
+  - `analyst-fast` → `MaaS GLM-5.2`
   - `analyst-local` → `ollama/qwen2.5:7b`
   - `analyst-local-fast` → `ollama/qwen2.5:1.5b`
 
@@ -484,7 +484,7 @@ secrets, configmaps, PVCs, services, deployments, statefulsets, jobs).
 
 | Placeholder | Archivo(s) | Reemplazar por |
 |-------------|-----------|----------------|
-| `TU_API_KEY` | `01-secrets.yaml` | API key real de OpenAI (o usar `analyst-local-fast` sin key) |
+| `MAAS_API_KEY` | `01-secrets.yaml` | API key real de Huawei Cloud MaaS (o usar `analyst-local-fast` sin key) |
 | `sk-local-secret` | `01-secrets.yaml` | Master key real de LiteLLM |
 | Passwords en claro | `01-secrets.yaml` | Passwords reales o secrets gestionados |
 | `swr.<region>.myhuaweicloud.com/<org>/analyst-api:latest` | `16-api.yaml` | Imagen real en SWR |

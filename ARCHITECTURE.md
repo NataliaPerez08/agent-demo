@@ -42,10 +42,10 @@
                     │  Gateway   │  │            │  │        │  │                │
                     │  (:4000)   │  │  agent DB  │  │ (:6379)│  │  glossary :8100│
                     │            │  │  analytics │  │        │  │  explorer :8101│
-                    │ OpenAI     │  │  (:5432)   │  │ session│  │  filesystem    │
+                     │ MaaS Huawei│  │  (:5432)   │  │ session│  │  filesystem    │
                     │ Ollama     │  │  (:5433)   │  │ cache  │  │  websearch     │
                     │            │  │            │  │ rate   │  │                │
-                    │ gpt-5      │  │ checkpoints│  │ limit  │  │  (HTTP /mcp)   │
+                     │ GLM-5.2    │  │ checkpoints│  │ limit  │  │  (HTTP /mcp)   │
                     │ qwen2.5    │  │ auditoria  │  │        │  │                │
                     └─────┬──────┘  └────────────┘  └────────┘  └────────────────┘
                           │
@@ -243,8 +243,8 @@ Gateway de modelos que unifica acceso a múltiples providers.
 ```yaml
 # litellm/config.yaml
 model_list:
-  - analyst-smart:       openai/gpt-5
-  - analyst-fast:        openai/gpt-5-mini
+  - analyst-smart:       MaaS GLM-5.2
+  - analyst-fast:        MaaS GLM-5.2
   - analyst-local:       ollama/qwen2.5:7b
   - analyst-local-fast:  ollama/qwen2.5:1.5b
 ```
@@ -412,7 +412,7 @@ ELB auto-creado con EIP público + health check contra `/health`.
 | API | FastAPI, LangGraph |
 | Chatbot | Chainlit |
 | MCP | mcp (FastMCP), langchain-mcp-adapters |
-| Modelos | LiteLLM (OpenAI gpt-5, Ollama qwen2.5) |
+| Modelos | LiteLLM (MaaS GLM-5.2, Ollama qwen2.5) |
 | DB | PostgreSQL 16 (agent + analytics) |
 | Cache/sesiones | Redis 7 |
 | Validación SQL | SQLGlot (AST) |
@@ -446,7 +446,7 @@ graph TB
     subgraph Models["Modelos"]
         LiteLLM["LiteLLM Gateway<br/>:4000"]
         Ollama["Ollama<br/>:11434<br/>qwen2.5:7b / 1.5b"]
-        OpenAI["OpenAI<br/>gpt-5 / gpt-5-mini"]
+        MaaS["MaaS Huawei<br/>GLM-5.2"]
     end
 
     subgraph Data["Persistencia"]
@@ -468,7 +468,7 @@ graph TB
 
     Agent -->|LLM| LiteLLM
     LiteLLM --> Ollama
-    LiteLLM --> OpenAI
+    LiteLLM --> MaaS
 
     Agent -->|read-only| AnalyticsDB
     Agent -->|checkpoints| AgentDB
