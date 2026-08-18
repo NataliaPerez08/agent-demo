@@ -138,8 +138,12 @@ deploy-cce:
 	kubectl apply -f deploy/cce/16-api.yaml
 	kubectl apply -f deploy/cce/17-elb.yaml
 	kubectl apply -f deploy/cce/20-chatbot.yaml
-	@echo ">> deploy aplicado. EIP del ELB:"
-	kubectl get svc api-elb -n data-analyst-agent -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "(pendiente)"
+	kubectl apply -f deploy/cce/22-elb-chatbot.yaml
+	kubectl apply -f deploy/cce/23-elb-litellm.yaml
+	@echo ">> deploy aplicado. EIPs:"
+	@echo "   API:    $$(kubectl get svc api-elb -n data-analyst-agent -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo '(pendiente)')"
+	@echo "   Chatbot:$$(kubectl get svc chatbot-elb -n data-analyst-agent -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo '(pendiente)')"
+	@echo "   LiteLLM:$$(kubectl get svc litellm-elb -n data-analyst-agent -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo '(pendiente)')"
 
 # ---- Terraform (Huawei Cloud CCE) ----
 

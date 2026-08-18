@@ -591,22 +591,24 @@ kubectl logs job/ollama-init -n data-analyst-agent
 
 ### Paso 5 — Usar
 
-- **API**: `http://<EIP>:8000` (vía ELB público)
-- **Chatbot**: port-forward a :8001 o segundo ELB/Ingress
-- **MCP**: `http://<EIP>:8000/mcp` (Claude Desktop o clientes MCP)
+- **API**: `http://<EIP-API>:8000` (vía ELB público)
+- **Chatbot**: `http://<EIP-Chatbot>:8001` (vía ELB público)
+- **LiteLLM**: `http://<EIP-LiteLLM>:4000` (vía ELB público)
+- **MCP**: `http://<EIP-API>:8000/mcp` (Claude Desktop o clientes MCP)
 
 ### Arquitectura CCE
 
 ```text
 Internet
     │
-    ▼
-ELB (EIP público) ──► api (x2 réplicas)
-                          │
-                ┌─────────┼─────────┐
-                ▼         ▼         ▼
-          litellm    mcp-servers  chatbot
-            │
+    ├──► ELB api-elb (:8000) ──► api (x2 réplicas)
+    ├──► ELB chatbot-elb (:8001) ──► chatbot
+    └──► ELB litellm-elb (:4000) ──► litellm
+                                      │
+                            ┌─────────┼─────────┐
+                            ▼         ▼         ▼
+                      litellm-db  litellm-redis  ollama
+```
     ┌───────┼───────┐
     ▼       ▼       ▼
   ollama  openai  litellm-db/redis
@@ -634,6 +636,8 @@ ELB (EIP público) ──► api (x2 réplicas)
 | 19 | `19-mcp-explorer.yaml` | Service + Deployment | 8101 |
 | 20 | `20-chatbot.yaml` | Service + Deployment | 8001 |
 | 21 | `21-litellm-db-redis.yaml` | Service + StatefulSet + Deployment | 5432, 6379 |
+| 22 | `22-elb-chatbot.yaml` | Service (LoadBalancer) | 8001 |
+| 23 | `23-elb-litellm.yaml` | Service (LoadBalancer) | 4000 |
 
 ### Notas de producción
 
@@ -641,7 +645,6 @@ ELB (EIP público) ──► api (x2 réplicas)
   passwords en claro.
 - **GPU**: añadir `nodeSelector` + `tolerations` al deployment de
   Ollama para el node pool GPU de CCE.
-- **Chatbot público**: añadir un segundo ELB o Ingress para :8001.
 - **Modelo**: por defecto usa Ollama local (`analyst-local-fast`).
   Para MaaS, reemplazar `MAAS_API_KEY` en `app-secrets`.
 

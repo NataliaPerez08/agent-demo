@@ -31,8 +31,10 @@ kubectl apply -f deploy/cce/
                                                   └─► 18-mcp-glossary
                                                   └─► 19-mcp-explorer
                                                   └─► 16-api (2 réplicas)
-                                                        └─► 17-elb (EIP público)
+                                                        └─► 17-elb-api (EIP público :8000)
                                                         └─► 20-chatbot
+                                                              └─► 22-elb-chatbot (EIP público :8001)
+                                                        └─► 23-elb-litellm (EIP público :4000)
 ```
 
 ---
@@ -473,9 +475,11 @@ kubectl create configmap analytics-db-init \
 | 19 | `19-mcp-explorer.yaml` | Service + Deployment | `mcp-explorer` | 8101 |
 | 20 | `20-chatbot.yaml` | Service + Deployment | `chatbot` | 8001 |
 | 21 | `21-litellm-db-redis.yaml` | Service + StatefulSet + Service + Deployment | `litellm-db`, `litellm-redis` | 5432, 6379 |
+| 22 | `22-elb-chatbot.yaml` | Service (LoadBalancer) | `chatbot-elb` | 8001 |
+| 23 | `23-elb-litellm.yaml` | Service (LoadBalancer) | `litellm-elb` | 4000 |
 | — | `create-configmaps.sh` | Script | genera ConfigMap `analytics-db-init` | — |
 
-**Total**: 16 YAML + 1 script = **28 recursos Kubernetes** (namespaces,
+**Total**: 18 YAML + 1 script = **30 recursos Kubernetes** (namespaces,
 secrets, configmaps, PVCs, services, deployments, statefulsets, jobs).
 
 ---

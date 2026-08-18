@@ -549,3 +549,95 @@ resource "kubernetes_service" "api_elb" {
 
   depends_on = [kubernetes_deployment.api]
 }
+
+# ---- Chatbot ELB Service (LoadBalancer) ----
+
+resource "kubernetes_service" "chatbot_elb" {
+  metadata {
+    name      = "chatbot-elb"
+    namespace = kubernetes_namespace.agent.metadata[0].name
+
+    annotations = {
+      "kubernetes.io/elb.class"          = "union"
+      "kubernetes.io/elb.autocreate"     = jsonencode({
+        type                = "public"
+        name                = "analyst-chatbot-elb"
+        bandwidth_name      = "analyst-chatbot-bw"
+        bandwidth_chargemode = "bandwidth"
+        bandwidth_size      = var.elb_bandwidth
+        bandwidth_sharetype = "PER"
+        eip_type            = "5_bgp"
+      })
+      "kubernetes.io/elb.health-check-flag" = "on"
+      "kubernetes.io/elb.health-check-option" = jsonencode({
+        protocol   = "HTTP"
+        port       = 8001
+        path       = "/health"
+        delay      = "5"
+        timeout    = "3"
+        max_retries = "3"
+      })
+    }
+  }
+
+  spec {
+    type = "LoadBalancer"
+
+    selector = {
+      app = "chatbot"
+    }
+
+    port {
+      port        = 8001
+      target_port = 8001
+    }
+  }
+
+  depends_on = [kubernetes_deployment.chatbot]
+}
+
+# ---- LiteLLM ELB Service (LoadBalancer) ----
+
+resource "kubernetes_service" "litellm_elb" {
+  metadata {
+    name      = "litellm-elb"
+    namespace = kubernetes_namespace.agent.metadata[0].name
+
+    annotations = {
+      "kubernetes.io/elb.class"          = "union"
+      "kubernetes.io/elb.autocreate"     = jsonencode({
+        type                = "public"
+        name                = "analyst-litellm-elb"
+        bandwidth_name      = "analyst-litellm-bw"
+        bandwidth_chargemode = "bandwidth"
+        bandwidth_size      = var.elb_bandwidth
+        bandwidth_sharetype = "PER"
+        eip_type            = "5_bgp"
+      })
+      "kubernetes.io/elb.health-check-flag" = "on"
+      "kubernetes.io/elb.health-check-option" = jsonencode({
+        protocol   = "HTTP"
+        port       = 4000
+        path       = "/health/liveness"
+        delay      = "5"
+        timeout    = "3"
+        max_retries = "3"
+      })
+    }
+  }
+
+  spec {
+    type = "LoadBalancer"
+
+    selector = {
+      app = "litellm"
+    }
+
+    port {
+      port        = 4000
+      target_port = 4000
+    }
+  }
+
+  depends_on = [kubernetes_deployment.litellm]
+}
