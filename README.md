@@ -499,21 +499,151 @@ Aliases disponibles (definidos en `litellm/config.yaml`):
 
 ## Deploy en Huawei Cloud CCE
 
-Manifests en `deploy/cce/` (14 archivos numerados):
+Manifests en `deploy/cce/` (16 YAML + 1 script = 28 recursos
+Kubernetes). Para la guía detallada de cada manifest, ver
+`deploy/cce/README.md`.
+
+### Requisitos previos
+
+- Huawei Cloud CLI (`hcloud`) o acceso a la consola web
+- `kubectl` configurado contra el cluster CCE
+- Docker para construir y subir imágenes
+- SWR (SoftWare Repository) accessible
+
+### Paso 1 — Configurar variables
 
 ```bash
-# 1. Configurar deploy/cce/.env (región, org, SWR_PASSWORD)
-# 2. Construir y publicar imagen
-SWR_PASSWORD=<token> make image
-# 3. Deployar
-make deploy-cce
-# 4. Obtener EIP del ELB
-kubectl get svc api-elb -n data-analyst-agent
+cd deploy/cce
+cp .env.example .env     # si existe
+# editar .env / 01-secrets.yaml:
+#   OPENAI_API_KEY       (o usar analyst-local-fast sin key)
+#   SWR_REGION, SWR_ORG  (región y organización de SWR)
 ```
 
-ELB auto-creado (`17-elb.yaml`) con EIP público + health check contra
-`/health`. PVCs `csi-disk` (EVS). Cadena de arranque con healthchecks
-y gates (`ollama-init` debe completar antes de que `litellm` arranque).
+Reemplazar en los manifests:
+
+| Placeholder | Archivo(s) | Reemplazar por |
+|-------------|-----------|----------------|
+| `TU_API_KEY` | `01-secrets.yaml` | API key real o dejar para Ollama local |
+| `sk-local-secret` | `01-secrets.yaml` | Master key real de LiteLLM |
+| Passwords en claro | `01-secrets.yaml` | Passwords reales o secrets gestionados |
+| `swr.<region>.../analyst-api:latest` | `16-api`, `18-*`, `19-*` | Imagen real en SWR |
+| `swr.<region>.../analyst-chatbot:latest` | `20-chatbot.yaml` | Imagen real en SWR |
+
+### Paso 2 — Construir y publicar imagen
+
+```bash
+# Login en SWR
+docker login -u <org> swr.<region>.myhuaweicloud.com
+
+# Build + push (una imagen para api, mcp-glossary, mcp-explorer)
+make image-build    # construye analyst-api:latest
+make image-push     # push a SWR
+```
+
+### Paso 3 — Desplegar en CCE
+
+```bash
+make deploy-cce
+```
+
+Esto ejecuta en orden:
+1. `create-configmaps.sh` — genera ConfigMap `analytics-db-init`
+2. Namespace → Secrets → ConfigMaps → PVCs
+3. Postgres (agent + analytics) → Redis → Ollama
+4. `ollama-init` Job (descarga modelos, ~5 min primera vez)
+5. LiteLLM DB/Redis → LiteLLM
+6. MCP servers → API (2 réplicas) → ELB → Chatbot
+
+Cadena de dependencias:
+
+```text
+ollama healthy → ollama-init complete → litellm start → api start → chatbot start
+```
+
+### Paso 4 — Verificar
+
+```bash
+# Pods
+kubectl get pods -n data-analyst-agent
+
+# Services + EIP del ELB
+kubectl get svc -n data-analyst-agent
+
+# Health check
+kubectl port-forward svc/api -n data-analyst-agent 8000:8000
+curl http://localhost:8000/health
+# → {"status":"ok"}
+
+# EIP público del ELB
+kubectl get svc api-elb -n data-analyst-agent \
+  -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+
+# Probar /chat
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"question": "¿Cuánto revenue hubo en julio?"}'
+
+# Logs
+kubectl logs -f deployment/api -n data-analyst-agent
+kubectl logs job/ollama-init -n data-analyst-agent
+```
+
+### Paso 5 — Usar
+
+- **API**: `http://<EIP>:8000` (vía ELB público)
+- **Chatbot**: port-forward a :8001 o segundo ELB/Ingress
+- **MCP**: `http://<EIP>:8000/mcp` (Claude Desktop o clientes MCP)
+
+### Arquitectura CCE
+
+```text
+Internet
+    │
+    ▼
+ELB (EIP público) ──► api (x2 réplicas)
+                          │
+                ┌─────────┼─────────┐
+                ▼         ▼         ▼
+          litellm    mcp-servers  chatbot
+            │
+    ┌───────┼───────┐
+    ▼       ▼       ▼
+  ollama  openai  litellm-db/redis
+    │
+  ollama-init (Job)
+```
+
+### Recursos desplegados
+
+| # | Archivo | Kind(s) | Puerto(s) |
+|---|---------|---------|-----------|
+| 00 | `00-namespace.yaml` | Namespace | — |
+| 01 | `01-secrets.yaml` | Secret x4 | — |
+| 02 | `02-configmaps.yaml` | ConfigMap x2 | — |
+| 03 | `03-pvcs.yaml` | PVC x4 | — |
+| 10 | `10-postgres-agent.yaml` | Service + StatefulSet | 5432 |
+| 11 | `11-postgres-analytics.yaml` | Service + StatefulSet | 5432 |
+| 12 | `12-redis.yaml` | Service + Deployment | 6379 |
+| 13 | `13-ollama.yaml` | Service + Deployment | 11434 |
+| 14 | `14-ollama-init-job.yaml` | Job | — |
+| 15 | `15-litellm.yaml` | Service + Deployment | 4000 |
+| 16 | `16-api.yaml` | Service + Deployment (x2) | 8000 |
+| 17 | `17-elb.yaml` | Service (LoadBalancer) | 8000 |
+| 18 | `18-mcp-glossary.yaml` | Service + Deployment | 8100 |
+| 19 | `19-mcp-explorer.yaml` | Service + Deployment | 8101 |
+| 20 | `20-chatbot.yaml` | Service + Deployment | 8001 |
+| 21 | `21-litellm-db-redis.yaml` | Service + StatefulSet + Deployment | 5432, 6379 |
+
+### Notas de producción
+
+- **Secrets**: usar Huawei Cloud DeH o Sealed Secrets en vez de
+  passwords en claro.
+- **GPU**: añadir `nodeSelector` + `tolerations` al deployment de
+  Ollama para el node pool GPU de CCE.
+- **Chatbot público**: añadir un segundo ELB o Ingress para :8001.
+- **Modelo**: por defecto usa Ollama local (`analyst-local-fast`).
+  Para OpenAI, reemplazar `OPENAI_API_KEY` en `app-secrets`.
 
 ---
 
