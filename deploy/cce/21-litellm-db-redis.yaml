@@ -28,9 +28,12 @@ spec:
     spec:
       containers:
         - name: postgres
-          image: postgres:16
+          image: swr.la-north-2.myhuaweicloud.com/langchain-test/postgres:16
           ports:
             - containerPort: 5432
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           envFrom:
             - secretRef:
                 name: litellm-db-credentials
@@ -76,7 +79,7 @@ spec:
     spec:
       containers:
         - name: redis
-          image: redis:7
+          image: swr.la-north-2.myhuaweicloud.com/langchain-test/redis:7
           ports:
             - containerPort: 6379
           readinessProbe:

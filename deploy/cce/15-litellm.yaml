@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
         - name: litellm
-          image: ghcr.io/berriai/litellm:main-latest
+          image: swr.la-north-2.myhuaweicloud.com/langchain-test/litellm:latest
           args:
             - "--config"
             - "/app/config.yaml"

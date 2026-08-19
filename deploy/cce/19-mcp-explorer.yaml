@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
         - name: mcp-explorer
-          image: swr.cn-north-4.myhuaweicloud.com/mi-org/analyst-api:latest
+          image: swr.la-north-2.myhuaweicloud.com/langchain-test/analyst-api:latest
           command: ["python", "-m", "mcp_servers.servers.analytics_explorer"]
           ports:
             - containerPort: 8101
@@ -35,8 +35,7 @@ spec:
             - secretRef:
                 name: app-secrets
           readinessProbe:
-            httpGet:
-              path: /mcp
+            tcpSocket:
               port: 8101
             initialDelaySeconds: 5
             periodSeconds: 5

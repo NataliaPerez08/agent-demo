@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
         - name: ollama
-          image: ollama/ollama:latest
+          image: swr.la-north-2.myhuaweicloud.com/langchain-test/ollama:latest
           ports:
             - containerPort: 11434
           volumeMounts:

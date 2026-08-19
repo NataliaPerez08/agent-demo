@@ -28,7 +28,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: swr.<region>.myhuaweicloud.com/<org>/analyst-api:latest
+          image: swr.la-north-2.myhuaweicloud.com/langchain-test/analyst-api:latest
           ports:
             - containerPort: 8000
           envFrom:

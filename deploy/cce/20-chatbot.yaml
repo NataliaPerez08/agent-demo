@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
         - name: chatbot
-          image: swr.cn-north-4.myhuaweicloud.com/mi-org/analyst-chatbot:latest
+          image: swr.la-north-2.myhuaweicloud.com/langchain-test/analyst-chatbot:latest
           ports:
             - containerPort: 8001
           env:

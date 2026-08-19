@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
         - name: redis
-          image: redis:7
+          image: swr.la-north-2.myhuaweicloud.com/langchain-test/redis:7
           ports:
             - containerPort: 6379
           readinessProbe:

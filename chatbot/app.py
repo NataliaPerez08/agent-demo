@@ -99,26 +99,18 @@ async def on_message(message: cl.Message):
 
     if sql and sql != "CANNOT_ANSWER":
 
-        elements.append(
-            cl.Code(
-                code=sql,
-                language="sql",
-                name="SQL generado",
-            )
-        )
+        sql_block = f"\n\n```sql\n{sql}\n```"
+    else:
+        sql_block = ""
 
     if chart:
 
         chart_text = _format_chart(chart)
-        elements.append(
-            cl.Text(
-                content=chart_text,
-                name="Sugerencia de grafica",
-                display="side",
-            )
-        )
+        chart_block = f"\n\n---\n\n{chart_text}"
+    else:
+        chart_block = ""
 
-    msg = cl.Message(content=answer, elements=elements)
+    msg = cl.Message(content=answer + sql_block + chart_block)
     await msg.send()
 
     if thread_id:

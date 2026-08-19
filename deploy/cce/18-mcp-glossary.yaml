@@ -27,13 +27,12 @@ spec:
     spec:
       containers:
         - name: mcp-glossary
-          image: swr.cn-north-4.myhuaweicloud.com/mi-org/analyst-api:latest
+          image: swr.la-north-2.myhuaweicloud.com/langchain-test/analyst-api:latest
           command: ["python", "-m", "mcp_servers.servers.business_glossary"]
           ports:
             - containerPort: 8100
           readinessProbe:
-            httpGet:
-              path: /mcp
+            tcpSocket:
               port: 8100
             initialDelaySeconds: 5
             periodSeconds: 5

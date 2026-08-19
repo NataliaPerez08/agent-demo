@@ -10,7 +10,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: ollama-init
-          image: ollama/ollama:latest
+          image: swr.la-north-2.myhuaweicloud.com/langchain-test/ollama:latest
           env:
             - name: OLLAMA_HOST
               value: http://ollama:11434
