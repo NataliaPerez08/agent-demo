@@ -3,8 +3,7 @@
 Flujo:
   1. Usuario escribe una pregunta
   2. Chainlit llama a POST /chat del API
-  3. Muestra la respuesta, el SQL generado y el chart sugerido
-  4. Botones para exportar CSV/Excel del ultimo resultado
+  3. Muestra la respuesta, el SQL generado, el chart plotly y los datos
 
 Arrancar:
   chainlit run chatbot/app.py --port 8001
@@ -13,6 +12,7 @@ Arrancar:
 import json
 
 import chainlit as cl
+import plotly.graph_objects as go
 
 from chatbot.agent_client import AgentClient
 
@@ -92,6 +92,7 @@ async def on_message(message: cl.Message):
     answer = result.get("answer", "")
     sql = result.get("sql")
     chart = result.get("chart")
+    rows = result.get("rows")
 
     cl.user_session.set("thread_id", thread_id)
 
@@ -103,14 +104,24 @@ async def on_message(message: cl.Message):
     else:
         sql_block = ""
 
-    if chart:
+    chart_element = None
+    if chart and rows:
+        fig = _build_plotly_chart(chart, rows)
+        if fig:
+            chart_element = cl.Plotly(
+                name="chart",
+                figure=fig,
+                display="inline",
+                size="large",
+            )
 
-        chart_text = _format_chart(chart)
-        chart_block = f"\n\n---\n\n{chart_text}"
-    else:
-        chart_block = ""
+    rows_table = ""
+    if rows:
+        rows_table = "\n\n" + _rows_to_markdown_table(rows)
 
-    msg = cl.Message(content=answer + sql_block + chart_block)
+    msg = cl.Message(content=answer + sql_block + rows_table)
+    if chart_element:
+        msg.elements = [chart_element]
     await msg.send()
 
     if thread_id:
@@ -178,18 +189,86 @@ async def on_export_xlsx(action: cl.Action):
         await cl.Message(content=f"Error al exportar: {exc}").send()
 
 
-def _format_chart(chart: dict) -> str:
+def _build_plotly_chart(chart_config: dict, rows: list[dict]) -> go.Figure | None:
+    """Construye un grafico Plotly interactivo desde el chart_config y los rows."""
 
-    chart_type = chart.get("type", "unknown")
-    title = chart.get("title", "")
-    x = chart.get("x")
-    y = chart.get("y")
+    if not chart_config or not rows:
+        return None
 
-    lines = [f"**Tipo:** {chart_type}", f"**Titulo:** {title}"]
+    chart_type = chart_config.get("type")
+    title = chart_config.get("title", "Resultados")
+    x_col = chart_config.get("x")
+    y_col = chart_config.get("y")
+    series_cols = chart_config.get("series")
 
-    if x:
-        lines.append(f"**Eje X:** {x}")
-    if y:
-        lines.append(f"**Eje Y:** {y}")
+    x_data = [row.get(x_col) for row in rows] if x_col else None
+    y_data = [row.get(y_col) for row in rows] if y_col else None
+
+    fig = go.Figure()
+
+    if chart_type == "bar":
+        if series_cols:
+            for col in series_cols:
+                series_y = [row.get(col) for row in rows]
+                fig.add_trace(go.Bar(
+                    name=col,
+                    x=x_data,
+                    y=series_y,
+                ))
+            fig.update_layout(barmode="group")
+        else:
+            fig.add_trace(go.Bar(x=x_data, y=y_data))
+
+    elif chart_type == "line":
+        if series_cols:
+            for col in series_cols:
+                series_y = [row.get(col) for row in rows]
+                fig.add_trace(go.Scatter(
+                    name=col,
+                    x=x_data,
+                    y=series_y,
+                    mode="lines+markers",
+                ))
+        else:
+            fig.add_trace(go.Scatter(
+                x=x_data,
+                y=y_data,
+                mode="lines+markers",
+            ))
+
+    elif chart_type == "pie":
+        fig.add_trace(go.Pie(labels=x_data, values=y_data))
+
+    else:
+        return None
+
+    fig.update_layout(
+        title=title,
+        autosize=True,
+        height=400,
+        template="plotly_white",
+        showlegend=bool(series_cols),
+    )
+
+    return fig
+
+
+def _rows_to_markdown_table(rows: list[dict], max_rows: int = 30) -> str:
+    """Convierte una lista de dicts a una tabla markdown."""
+
+    if not rows:
+        return ""
+
+    headers = list(rows[0].keys())
+
+    lines = ["| " + " | ".join(headers) + " |"]
+    lines.append("| " + " | ".join(["---"] * len(headers)) + " |")
+
+    for row in rows[:max_rows]:
+        values = [str(row.get(h, "")) for h in headers]
+        lines.append("| " + " | ".join(values) + " |")
+
+    if len(rows) > max_rows:
+        lines.append(f"\n*Mostrando {max_rows} de {len(rows)} filas*")
 
     return "\n".join(lines)

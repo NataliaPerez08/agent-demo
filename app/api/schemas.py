@@ -23,6 +23,8 @@ class ChatResponse(BaseModel):
     answer: str
     sql: str | None = None
     chart: ChartConfig | None = None
+    rows: list[dict] | None = None
+    row_count: int = 0
 
 
 class ExportResponse(BaseModel):

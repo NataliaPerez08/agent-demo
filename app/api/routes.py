@@ -132,6 +132,8 @@ async def chat(request: ChatRequest, http_request: Request):
         answer=result.get("answer", ""),
         sql=result.get("generated_sql"),
         chart=chart,
+        rows=query_result[:50] if query_result else None,
+        row_count=len(query_result) if query_result else 0,
     )
 
 

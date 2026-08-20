@@ -15,7 +15,7 @@ class AgentClient:
         """Envia una pregunta al agente y devuelve la respuesta completa.
 
         Returns:
-            dict con thread_id, answer, sql, chart
+            dict con thread_id, answer, sql, chart, rows, row_count
         """
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:

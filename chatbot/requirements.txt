@@ -1,2 +1,4 @@
 chainlit>=2.11
 httpx>=0.27
+plotly>=5.18
+pandas>=2.0
