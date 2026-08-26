@@ -132,3 +132,64 @@ variable "api_replicas" {
   type        = number
   default     = 2
 }
+
+# ---- Passwords ( opcionales, usan defaults ) ----
+variable "node_pool_password" {
+  description = "Password del node pool CCE"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "pg_agent_password" {
+  description = "Password de PostgreSQL agent"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "pg_analytics_password" {
+  description = "Password de PostgreSQL analytics"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "litellm_db_password" {
+  description = "Password de PostgreSQL LiteLLM"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "maas_api_key" {
+  description = "API key de Huawei Cloud MaaS"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+# ---- Images ( opcionales, se arman con SWR org ) ----
+variable "postgres_image" {
+  description = "Imagen de PostgreSQL"
+  type        = string
+  default     = ""
+}
+
+variable "redis_image" {
+  description = "Imagen de Redis"
+  type        = string
+  default     = ""
+}
+
+variable "ollama_image" {
+  description = "Imagen de Ollama"
+  type        = string
+  default     = ""
+}
+
+variable "litellm_image" {
+  description = "Imagen de LiteLLM"
+  type        = string
+  default     = ""
+}

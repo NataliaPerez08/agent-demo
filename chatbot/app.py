@@ -9,10 +9,9 @@ Arrancar:
   chainlit run chatbot/app.py --port 8001
 """
 
-import json
-
 import chainlit as cl
 import plotly.graph_objects as go
+from chainlit.input_widget import Select
 
 from chatbot.agent_client import AgentClient
 
@@ -47,6 +46,34 @@ async def on_chat_start():
     cl.user_session.set("client", client)
     cl.user_session.set("thread_id", None)
 
+    models = await client.get_models()
+    available = [m for m in models if m.get("available")]
+
+    model_names = [m["name"] for m in models]
+    model_labels = {m["name"]: m["label"] for m in models}
+
+    if available:
+        default_model = available[0]["name"]
+    else:
+        default_model = "analyst-smart"
+
+    cl.user_session.set("models", models)
+    cl.user_session.set("model_labels", model_labels)
+    cl.user_session.set("model", default_model)
+
+    initial_index = model_names.index(default_model) if default_model in model_names else 0
+
+    await cl.ChatSettings(
+        [
+            Select(
+                id="model",
+                label="Modelo",
+                values=model_names,
+                initial_index=initial_index,
+            ),
+        ]
+    ).send()
+
     await cl.Message(
         content=(
             "¡Hola! Soy el Data Analyst Agent. "
@@ -57,6 +84,12 @@ async def on_chat_start():
             "- Compara junio contra julio."
         )
     ).send()
+
+
+@cl.on_settings_update
+async def on_settings_update(settings: dict):
+    """Actualiza el modelo seleccionado."""
+    cl.user_session.set("model", settings.get("model", "analyst-smart"))
 
 
 @cl.on_message
@@ -72,6 +105,7 @@ async def on_message(message: cl.Message):
         return
 
     question = message.content
+    model = cl.user_session.get("model")
 
     async with cl.Step(name="analizando") as step:
 
@@ -79,7 +113,7 @@ async def on_message(message: cl.Message):
 
         try:
 
-            result = await client.chat(question)
+            result = await client.chat(question, model=model)
 
         except Exception as exc:
 
@@ -96,7 +130,6 @@ async def on_message(message: cl.Message):
 
     cl.user_session.set("thread_id", thread_id)
 
-    elements = []
 
     if sql and sql != "CANNOT_ANSWER":
 

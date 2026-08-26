@@ -7,7 +7,6 @@ from psycopg.rows import dict_row
 from app.infrastructure.postgres import analytics_pool
 from app.infrastructure.redis import cache_get, cache_set
 
-
 MAX_ROWS = 100
 STATEMENT_TIMEOUT_MS = 5000
 QUERY_CACHE_TTL = 300

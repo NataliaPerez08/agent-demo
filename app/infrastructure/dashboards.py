@@ -2,7 +2,6 @@ from psycopg.rows import dict_row
 
 from app.infrastructure.postgres import agent_pool
 
-
 CREATE_DASHBOARD_SQL = """
 INSERT INTO dashboards (name, description, user_id)
 VALUES (%s, %s, %s)
@@ -92,11 +91,10 @@ async def list_dashboards(user_id: str) -> list[dict]:
 async def delete_dashboard(dashboard_id: int) -> bool:
 
     try:
-        async with agent_pool.connection() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute(DELETE_DASHBOARD_SQL, (dashboard_id,))
-                row = await cur.fetchone()
-                return row is not None
+        async with agent_pool.connection() as conn, conn.cursor() as cur:
+            await cur.execute(DELETE_DASHBOARD_SQL, (dashboard_id,))
+            row = await cur.fetchone()
+            return row is not None
     except Exception:
         return False
 
@@ -124,10 +122,9 @@ async def add_widget(
 async def delete_widget(dashboard_id: int, widget_id: int) -> bool:
 
     try:
-        async with agent_pool.connection() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute(DELETE_WIDGET_SQL, (widget_id, dashboard_id))
-                row = await cur.fetchone()
-                return row is not None
+        async with agent_pool.connection() as conn, conn.cursor() as cur:
+            await cur.execute(DELETE_WIDGET_SQL, (widget_id, dashboard_id))
+            row = await cur.fetchone()
+            return row is not None
     except Exception:
         return False

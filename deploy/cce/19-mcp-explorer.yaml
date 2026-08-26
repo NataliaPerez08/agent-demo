@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: mcp-explorer
-  namespace: data-analyst-agent
+  namespace: ${namespace}
 spec:
   selector:
     app: mcp-explorer
@@ -14,7 +14,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mcp-explorer
-  namespace: data-analyst-agent
+  namespace: ${namespace}
 spec:
   replicas: 1
   selector:
@@ -27,7 +27,8 @@ spec:
     spec:
       containers:
         - name: mcp-explorer
-          image: swr.la-north-2.myhuaweicloud.com/langchain-test/analyst-api:latest
+          image: ${api_image}
+          imagePullPolicy: Always
           command: ["python", "-m", "mcp_servers.servers.analytics_explorer"]
           ports:
             - containerPort: 8101

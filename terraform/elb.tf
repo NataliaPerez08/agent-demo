@@ -1,23 +1,23 @@
 # ---- EIP para el ELB ----
-resource "huaweicloud_eip_address" "api" {
+resource "huaweicloud_vpc_eip" "api" {
   name = "eip-analyst-api"
-  type = "5_bgp"
+
+  publicip {
+    type = "5_bgp"
+  }
 
   bandwidth {
     name        = "bw-analyst-api"
     size        = var.elb_bandwidth
-    sharetype   = "PER"
+    share_type  = "PER"
     charge_mode = "bandwidth"
   }
 }
 
 # ---- ELB ----
 resource "huaweicloud_elb_loadbalancer" "api" {
-  name            = "analyst-api-elb"
-  vip_subnet_id   = huaweicloud_vpc_subnet.agent.ipv4_subnet_id
-  type            = "public"
-  ipv4_address    = huaweicloud_eip_address.api.address
-  bandwidth_id    = huaweicloud_eip_address.api.id
+  name              = "analyst-api-elb"
+  availability_zone = ["la-north-2a"]
 
   tags = {
     project = "analyst-agent"
@@ -51,12 +51,12 @@ resource "huaweicloud_elb_pool" "api" {
 
 # ---- Health Monitor ----
 resource "huaweicloud_elb_monitor" "api" {
-  pool_id  = huaweicloud_elb_pool.api.id
-  type     = "HTTP"
-  port     = 8000
-  url_path = "/health"
+  pool_id        = huaweicloud_elb_pool.api.id
+  protocol       = "HTTP"
+  port           = 8000
+  url_path       = "/health"
 
-  delay          = 5
+  interval       = 5
   timeout        = 3
   max_retries    = 3
 }

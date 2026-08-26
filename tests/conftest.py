@@ -15,7 +15,6 @@ import urllib.request
 
 import pytest
 
-
 # Alias de LiteLLM -> tag de Ollama.
 OLLAMA_TAG_BY_ALIAS = {
     "analyst-local": "qwen2.5:7b",
@@ -137,7 +136,7 @@ async def full_stack():
             pytest.skip("modelo local no cargado (levantar ollama + ollama-init)")
         pytest.skip("OPENAI_API_KEY no configurada (dummy detectado)")
 
-    from app.infrastructure.postgres import open_database, close_database
+    from app.infrastructure.postgres import close_database, open_database
 
     try:
         await open_database()

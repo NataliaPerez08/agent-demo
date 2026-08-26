@@ -5,6 +5,19 @@ class ChatRequest(BaseModel):
 
     question: str
     user_id: str | None = None
+    model: str | None = None
+
+
+class ModelInfo(BaseModel):
+
+    name: str
+    label: str
+    available: bool
+
+
+class ModelsResponse(BaseModel):
+
+    models: list[ModelInfo]
 
 
 class ChartConfig(BaseModel):

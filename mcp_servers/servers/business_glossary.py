@@ -17,7 +17,6 @@ from pathlib import Path
 import yaml
 from mcp.server.fastmcp import FastMCP
 
-
 DICT_PATH = (
     Path(__file__).resolve().parents[2]
     / "database"

@@ -11,18 +11,24 @@ class AgentClient:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
 
-    async def chat(self, question: str, user_id: str = "chainlit") -> dict:
+    async def chat(
+        self, question: str, user_id: str = "chainlit", model: str | None = None
+    ) -> dict:
         """Envia una pregunta al agente y devuelve la respuesta completa.
 
         Returns:
             dict con thread_id, answer, sql, chart, rows, row_count
         """
 
+        payload: dict = {"question": question, "user_id": user_id}
+        if model:
+            payload["model"] = model
+
         async with httpx.AsyncClient(timeout=self.timeout) as client:
 
             response = await client.post(
                 f"{self.base_url}/chat",
-                json={"question": question, "user_id": user_id},
+                json=payload,
             )
             response.raise_for_status()
             return response.json()
@@ -64,3 +70,18 @@ class AgentClient:
         except Exception:
 
             return False
+
+    async def get_models(self) -> list[dict]:
+        """Obtiene la lista de modelos disponibles del API."""
+
+        try:
+
+            async with httpx.AsyncClient(timeout=5) as client:
+
+                response = await client.get(f"{self.base_url}/models")
+                response.raise_for_status()
+                return response.json().get("models", [])
+
+        except Exception:
+
+            return []

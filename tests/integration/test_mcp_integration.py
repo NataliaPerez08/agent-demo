@@ -27,7 +27,7 @@ async def test_mcp_client_loads_glossary_tools():
     except Exception as exc:
         pytest.skip(f"glossary server no disponible: {exc}")
 
-    tool_names = {t.name for t in tools}
+    {t.name for t in tools}
     assert len(tools) > 0, "No se cargaron tools del glossary"
 
 

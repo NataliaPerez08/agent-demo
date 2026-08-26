@@ -1,6 +1,5 @@
 from app.infrastructure.llm import ainvoke_with_usage, get_llm
 
-
 SYSTEM_PROMPT = """
 Eres un asistente de business intelligence.
 
@@ -33,7 +32,7 @@ async def generate_answer(state):
             "success": True,
         }
 
-    llm = get_llm()
+    llm = get_llm(model=state.get("model"))
 
     prompt = f"""
 PREGUNTA DEL USUARIO:

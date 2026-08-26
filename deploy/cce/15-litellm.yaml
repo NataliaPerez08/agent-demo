@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: litellm
-  namespace: data-analyst-agent
+  namespace: ${namespace}
 spec:
   selector:
     app: litellm
@@ -14,7 +14,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: litellm
-  namespace: data-analyst-agent
+  namespace: ${namespace}
 spec:
   replicas: 1
   selector:
@@ -27,7 +27,8 @@ spec:
     spec:
       containers:
         - name: litellm
-          image: swr.la-north-2.myhuaweicloud.com/langchain-test/litellm:latest
+          image: ${litellm_image}
+          imagePullPolicy: Always
           args:
             - "--config"
             - "/app/config.yaml"

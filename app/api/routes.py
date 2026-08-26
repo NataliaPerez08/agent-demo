@@ -1,6 +1,8 @@
 import json
+import os
 import uuid
 
+import httpx
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
@@ -11,6 +13,8 @@ from app.api.schemas import (
     DashboardRenderResponse,
     DashboardRenderWidget,
     DashboardResponse,
+    ModelInfo,
+    ModelsResponse,
     WidgetCreate,
     WidgetResponse,
 )
@@ -32,13 +36,12 @@ from app.infrastructure.observability import (
 )
 from app.infrastructure.redis import (
     cache_expire,
-    cache_incr_with_ttl,
     cache_get,
+    cache_incr_with_ttl,
     cache_set,
 )
 from app.services.charts import suggest_chart
 from app.services.export import rows_to_csv, rows_to_excel
-
 
 router = APIRouter()
 
@@ -52,6 +55,50 @@ RATE_LIMIT_MAX = 30
 RATE_LIMIT_WINDOW = 60
 
 DEFAULT_MODEL = settings.analyst_model
+
+OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+
+
+# ---- /models ----
+
+
+@router.get("/models", response_model=ModelsResponse)
+async def list_models():
+
+    maas_available = bool(settings.maas_api_key)
+
+    ollama_available = False
+    try:
+        async with httpx.AsyncClient(timeout=3) as client:
+            resp = await client.get(f"{OLLAMA_HOST}/api/tags")
+            ollama_available = resp.status_code == 200
+    except Exception:
+        pass
+
+    models = [
+        ModelInfo(
+            name="analyst-smart",
+            label="Smart (OpenAI via MAAS)",
+            available=maas_available,
+        ),
+        ModelInfo(
+            name="analyst-fast",
+            label="Fast (OpenAI via MAAS)",
+            available=maas_available,
+        ),
+        ModelInfo(
+            name="analyst-local",
+            label="Local (Ollama qwen2.5:7b)",
+            available=ollama_available,
+        ),
+        ModelInfo(
+            name="analyst-local-fast",
+            label="Local Fast (Ollama qwen2.5:1.5b)",
+            available=ollama_available,
+        ),
+    ]
+
+    return ModelsResponse(models=models)
 
 
 # ---- /chat ----
@@ -80,6 +127,7 @@ async def chat(request: ChatRequest, http_request: Request):
         "question": request.question,
         "user_id": user_id,
         "thread_id": thread_id,
+        "model": request.model or DEFAULT_MODEL,
         "retry_count": 0,
     }
 
@@ -118,7 +166,7 @@ async def chat(request: ChatRequest, http_request: Request):
             "error": result.get("execution_error") or result.get("validation_error"),
             "execution_ms": int(result.get("execution_ms", 0)),
             "row_count": len(query_result),
-            "model": DEFAULT_MODEL,
+            "model": request.model or DEFAULT_MODEL,
             "retry_count": int(result.get("retry_count", 0)),
         }
     )

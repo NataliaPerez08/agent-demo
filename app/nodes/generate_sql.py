@@ -3,7 +3,6 @@ import re
 
 from app.infrastructure.llm import ainvoke_with_usage, get_llm
 
-
 SYSTEM_PROMPT = """
 Eres un experto en PostgreSQL y análisis de datos.
 
@@ -90,7 +89,7 @@ def _strip_markdown(sql: str) -> str:
 
 async def generate_sql(state):
 
-    llm = get_llm()
+    llm = get_llm(model=state.get("model"))
 
     prompt = f"""
 ESQUEMA DISPONIBLE:

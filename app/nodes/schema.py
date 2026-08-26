@@ -5,7 +5,6 @@ import yaml
 from app.infrastructure.postgres import analytics_pool
 from app.infrastructure.redis import cache_get, cache_set
 
-
 SCHEMA_CACHE_KEY = "schema:analytics"
 SCHEMA_CACHE_TTL = 3600
 
@@ -101,21 +100,19 @@ async def retrieve_schema(state):
     if cached:
         return {"schema_context": cached}
 
-    async with analytics_pool.connection() as conn:
+    async with analytics_pool.connection() as conn, conn.cursor() as cursor:
 
-        async with conn.cursor() as cursor:
+        await cursor.execute(SCHEMA_QUERY)
 
-            await cursor.execute(SCHEMA_QUERY)
+        rows = await cursor.fetchall()
 
-            rows = await cursor.fetchall()
+        await cursor.execute(RELATIONSHIP_QUERY)
 
-            await cursor.execute(RELATIONSHIP_QUERY)
+        rels = await cursor.fetchall()
 
-            rels = await cursor.fetchall()
+        await cursor.execute(PRIMARY_KEY_QUERY)
 
-            await cursor.execute(PRIMARY_KEY_QUERY)
-
-            pks = await cursor.fetchall()
+        pks = await cursor.fetchall()
 
     schema: dict[str, list[str]] = {}
 

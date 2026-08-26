@@ -497,11 +497,93 @@ Aliases disponibles (definidos en `litellm/config.yaml`):
 
 ---
 
-## Deploy en Huawei Cloud CCE
+## Deploy automatizado (CI/CD + Terraform)
 
-Manifests en `deploy/cce/` (16 YAML + 1 script = 28 recursos
-Kubernetes). Para la guía detallada de cada manifest, ver
-`deploy/cce/README.md`.
+El proyecto incluye despliegue **100% automatizado** vía GitHub Actions +
+Terraform. Los manifiestos K8s en `deploy/cce/*.yaml` son la **única fuente
+de verdad**: Terraform los lee con `templatefile()` + `yamldecode()` y los
+aplica vía `kubernetes_manifest`.
+
+### Pipeline GitHub Actions (`.github/workflows/deploy.yml`)
+
+| Evento | Jobs |
+|--------|------|
+| PR | test (ruff + pytest unit) → terraform plan |
+| Push a `main` | test → build/push SWR (tags `latest`+SHA) → mirror imágenes → terraform apply → refresh (EIPs reales) → smoke `/health` |
+| `workflow_dispatch` | igual que push a `main` |
+
+`concurrency: deploy-${{ github.ref }}` evita applies paralelos.
+
+### Secrets y variables de GitHub
+
+| Tipo | Nombre | Descripción |
+|------|--------|-------------|
+| Secret | `HW_ACCESS_KEY` | Access Key de Huawei Cloud (IAM) |
+| Secret | `HW_SECRET_KEY` | Secret Access Key de Huawei Cloud |
+| Secret | `MAAS_API_KEY` | API key de MaaS (vacío si usa Ollama) |
+| Secret | `LITELLM_MASTER_KEY` | Master key de LiteLLM |
+| Variable | `TF_BUCKET` | Bucket OBS para el state de Terraform |
+
+> El login a SWR se deriva de `HW_ACCESS_KEY`/`HW_SECRET_KEY` (fórmula
+> HMAC-SHA256 oficial de Huawei) — no requiere secretos adicionales.
+
+### Terraform
+
+```text
+terraform/
+├── main.tf              Providers (huaweicloud + kubernetes con certs del CCE)
+├── versions.tf          required_providers + backend S3 (OBS)
+├── variables.tf         todas las variables (sensibles + imágenes)
+├── locals.tf            passwords aleatorios + vars para templatefile
+├── network.tf           VPC + subnet + security group
+├── cce.tf               CCE cluster + node pool + EIP master
+├── swr.tf               SWR org + repos (analyst-api, analyst-chatbot)
+├── elb.tf               (ELBs auto-creados por CCE via annotations)
+├── k8s-manifests.tf     kubernetes_manifest leyendo deploy/cce/*.yaml
+├── k8s-secrets.tf       Secrets nativos desde variables sensibles
+├── k8s-configmaps.tf    ConfigMaps SQL generados desde database/
+├── smoke.tf             Smoke test post-apply (kubectl + curl /health)
+├── outputs.tf           EIPs reales + endpoints
+├── backend.hcl.example  Config del backend OBS (copiar a backend.hcl)
+└── terraform.tfvars.example
+```
+
+### Deploy local (un comando)
+
+```bash
+# 1. Configurar credenciales
+export HW_ACCESS_KEY=...
+export HW_SECRET_KEY=...
+export TF_BUCKET=mi-bucket-tfstate
+
+# 2. Deploy end-to-end
+make deploy        # build + push + mirror + terraform apply
+```
+
+### Migración (si el cluster CCE ya existe)
+
+Importar los recursos existentes antes del primer `terraform apply`:
+
+```bash
+cd terraform
+terraform import huaweicloud_cce_cluster.agent <cluster-id>
+terraform import huaweicloud_vpc.agent <vpc-id>
+terraform import huaweicloud_vpc_subnet.agent <subnet-id>
+terraform import huaweicloud_swr_organization.agent <org-name>
+terraform import huaweicloud_swr_repository.api <org>/<repo>
+terraform import huaweicloud_swr_repository.chatbot <org>/<repo>
+```
+
+---
+
+## Deploy en Huawei Cloud CCE (manual / legacy)
+
+Manifests en `deploy/cce/` (16 YAML + 1 script). Los manifiestos usan
+placeholders (`${api_image}`, `${namespace}`, etc.) que Terraform resuelve
+automáticamente. Para deploy manual con kubectl, usar `make deploy-cce`
+(requiere `envsubst`).
+
+Para la guía detallada de cada manifest, ver `deploy/cce/README.md`.
 
 ### Requisitos previos
 
@@ -608,12 +690,8 @@ Internet
                             ┌─────────┼─────────┐
                             ▼         ▼         ▼
                       litellm-db  litellm-redis  ollama
-```
-    ┌───────┼───────┐
-    ▼       ▼       ▼
-  ollama  openai  litellm-db/redis
-    │
-  ollama-init (Job)
+                                                    │
+                                              ollama-init (Job)
 ```
 
 ### Recursos desplegados
@@ -659,13 +737,13 @@ nix develop
 
 ---
 
-## Plan de acción
-
-El desarrollo sigue `action_plan.md`. Estado:
+## Estado del proyecto
 
 - **Fases 1–18** completadas (MVP + conversacional + confiabilidad).
-- **Etapa D**: export CSV/Excel + charts ✅ (rama `etapa-d`).
+- **Etapa D**: export CSV/Excel + charts ✅.
 - **MCP + Chatbot**: servers propios, agente cliente/servidor MCP,
-  Chainlit, deploy CCE ✅ (rama `ollama-service`).
+  Chainlit ✅.
+- **Deploy**: CI/CD automatizado (GitHub Actions + Terraform) ✅.
+- **CCE**: manifests Kubernetes para Huawei Cloud CCE ✅.
 
-Ver `git log` para el histórico por etapa.
+Ver `action_plan.md` y `git log` para el histórico por etapa.

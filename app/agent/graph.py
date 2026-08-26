@@ -11,8 +11,8 @@ from app.agent.routing import (
 )
 from app.agent.state import AnalystState
 from app.infrastructure.observability import timed
-from app.nodes.answer import generate_answer
 from app.nodes.analyze import analyze_results
+from app.nodes.answer import generate_answer
 from app.nodes.execute_sql import execute_sql
 from app.nodes.failure import failure
 from app.nodes.fix_sql import fix_sql

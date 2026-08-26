@@ -1,9 +1,9 @@
 """Tests del data_dictionary.yaml: metricas y estructura."""
 
-import pytest
-import yaml
 from pathlib import Path
 
+import pytest
+import yaml
 
 DICT_PATH = (
     Path(__file__).resolve().parents[2]

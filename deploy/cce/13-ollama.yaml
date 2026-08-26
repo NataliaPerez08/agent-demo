@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: ollama
-  namespace: data-analyst-agent
+  namespace: ${namespace}
 spec:
   selector:
     app: ollama
@@ -14,7 +14,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ollama
-  namespace: data-analyst-agent
+  namespace: ${namespace}
 spec:
   replicas: 1
   selector:
@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
         - name: ollama
-          image: swr.la-north-2.myhuaweicloud.com/langchain-test/ollama:latest
+          image: ${ollama_image}
           ports:
             - containerPort: 11434
           volumeMounts:

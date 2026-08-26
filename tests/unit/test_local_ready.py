@@ -1,7 +1,5 @@
 import json
 
-import pytest
-
 
 def _fake_response(payload: dict):
     class _Resp:
@@ -21,7 +19,7 @@ def _fake_response(payload: dict):
 
 
 def test_local_model_ready_present(monkeypatch):
-    import tests.conftest as conftest
+    from tests import conftest
 
     monkeypatch.setenv("ANALYST_MODEL", "analyst-local-fast")
     monkeypatch.setattr(
@@ -35,7 +33,7 @@ def test_local_model_ready_present(monkeypatch):
 
 
 def test_local_model_ready_absent(monkeypatch):
-    import tests.conftest as conftest
+    from tests import conftest
 
     monkeypatch.setenv("ANALYST_MODEL", "analyst-local-fast")
     monkeypatch.setattr(
@@ -47,7 +45,7 @@ def test_local_model_ready_absent(monkeypatch):
 
 
 def test_local_model_ready_connection_error(monkeypatch):
-    import tests.conftest as conftest
+    from tests import conftest
 
     monkeypatch.setenv("ANALYST_MODEL", "analyst-local-fast")
 
@@ -60,7 +58,7 @@ def test_local_model_ready_connection_error(monkeypatch):
 
 
 def test_local_model_ready_non_local_alias(monkeypatch):
-    import tests.conftest as conftest
+    from tests import conftest
 
     monkeypatch.setenv("ANALYST_MODEL", "analyst-smart")
 
@@ -68,7 +66,7 @@ def test_local_model_ready_non_local_alias(monkeypatch):
 
 
 def test_llm_ready_local_path_uses_probe(monkeypatch):
-    import tests.conftest as conftest
+    from tests import conftest
 
     monkeypatch.setenv("ANALYST_MODEL", "analyst-local-fast")
     monkeypatch.setattr(
@@ -83,7 +81,7 @@ def test_llm_ready_local_path_uses_probe(monkeypatch):
 
 
 def test_llm_ready_openai_path_uses_api_key(monkeypatch):
-    import tests.conftest as conftest
+    from tests import conftest
 
     monkeypatch.setenv("ANALYST_MODEL", "analyst-smart")
     monkeypatch.setenv("OPENAI_API_KEY", "sk-real")
@@ -93,7 +91,7 @@ def test_llm_ready_openai_path_uses_api_key(monkeypatch):
 
 
 def test_llm_ready_openai_path_dummy_key(monkeypatch):
-    import tests.conftest as conftest
+    from tests import conftest
 
     monkeypatch.setenv("ANALYST_MODEL", "analyst-smart")
     monkeypatch.setenv("OPENAI_API_KEY", "TU_API_KEY")

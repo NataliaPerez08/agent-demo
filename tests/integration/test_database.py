@@ -3,7 +3,6 @@ import pytest
 from app.nodes.execute_sql import execute_sql
 from app.nodes.schema import retrieve_schema
 
-
 INTEGRITY_QUERY = """
 SELECT
     o.id,
@@ -22,11 +21,10 @@ HAVING
 
 @pytest.mark.integration
 async def test_connection(analytics_pool_ready):
-    async with analytics_pool_ready.connection() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute("SELECT 1")
-            row = await cur.fetchone()
-            assert row[0] == 1
+    async with analytics_pool_ready.connection() as conn, conn.cursor() as cur:
+        await cur.execute("SELECT 1")
+        row = await cur.fetchone()
+        assert row[0] == 1
 
 
 @pytest.mark.integration

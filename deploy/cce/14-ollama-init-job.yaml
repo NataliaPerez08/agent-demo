@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: ollama-init
-  namespace: data-analyst-agent
+  namespace: ${namespace}
 spec:
   backoffLimit: 3
   template:
@@ -10,7 +10,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: ollama-init
-          image: swr.la-north-2.myhuaweicloud.com/langchain-test/ollama:latest
+          image: ${ollama_image}
           env:
             - name: OLLAMA_HOST
               value: http://ollama:11434

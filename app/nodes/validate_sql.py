@@ -2,7 +2,6 @@ import sqlglot
 from sqlglot import exp
 from sqlglot.errors import ParseError
 
-
 FORBIDDEN_EXPRESSIONS = (
     exp.Insert,
     exp.Update,

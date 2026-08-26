@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: mcp-glossary
-  namespace: data-analyst-agent
+  namespace: ${namespace}
 spec:
   selector:
     app: mcp-glossary
@@ -14,7 +14,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mcp-glossary
-  namespace: data-analyst-agent
+  namespace: ${namespace}
 spec:
   replicas: 1
   selector:
@@ -27,7 +27,8 @@ spec:
     spec:
       containers:
         - name: mcp-glossary
-          image: swr.la-north-2.myhuaweicloud.com/langchain-test/analyst-api:latest
+          image: ${api_image}
+          imagePullPolicy: Always
           command: ["python", "-m", "mcp_servers.servers.business_glossary"]
           ports:
             - containerPort: 8100

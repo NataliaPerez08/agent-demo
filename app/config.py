@@ -10,6 +10,8 @@ class Settings(BaseSettings):
 
     redis_url: str
 
+    maas_api_key: str = ""
+
     # Alias de modelo expuesto por LiteLLM.
     # Valores validos: analyst-smart, analyst-fast (OpenAI via LiteLLM),
     # analyst-local, analyst-local-fast (Ollama via LiteLLM).

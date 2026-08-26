@@ -8,6 +8,8 @@ class AnalystState(TypedDict, total=False):
     thread_id: str
     user_id: str
 
+    model: str
+
     schema_context: str
 
     question_type: str

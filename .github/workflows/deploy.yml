@@ -1,0 +1,190 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SWR_REGION: la-north-2
+  SWR_ORG: langchain-test
+  TF_VERSION: "1.9.0"
+
+jobs:
+  # ---- Test (siempre) ----
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Tests unitarios
+        run: python -m pytest tests/unit -q
+
+  # ---- Terraform plan (solo PR) ----
+  plan:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.HW_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.HW_SECRET_KEY }}
+      TF_VAR_access_key: ${{ secrets.HW_ACCESS_KEY }}
+      TF_VAR_secret_key: ${{ secrets.HW_SECRET_KEY }}
+      TF_VAR_maas_api_key: ${{ secrets.MAAS_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform init
+        working-directory: terraform
+        run: |
+          terraform init -backend-config="bucket=${{ vars.TF_BUCKET }}" \
+            -backend-config="region=${{ env.SWR_REGION }}" \
+            -backend-config="endpoint=https://obs.${{ env.SWR_REGION }}.myhuaweicloud.com" \
+            -backend-config="skip_region_validation=true" \
+            -backend-config="skip_credentials_validation=true" \
+            -backend-config="skip_metadata_api_check=true" \
+            -backend-config="skip_requesting_account_id=true"
+
+      - name: Terraform plan
+        working-directory: terraform
+        run: terraform plan -no-color -var="image_tag=plan-preview" -out=tfplan
+
+      - name: Upload plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: terraform/tfplan
+
+  # ---- Build + push (push a main o dispatch) ----
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    outputs:
+      sha_tag: ${{ steps.meta.outputs.sha_tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: SWR login (AK/SK)
+        id: swr_login
+        env:
+          AK: ${{ secrets.HW_ACCESS_KEY }}
+          SK: ${{ secrets.HW_SECRET_KEY }}
+        run: |
+          SWR_HOST="swr.${{ env.SWR_REGION }}.myhuaweicloud.com"
+          LOGIN_KEY=$(printf "$AK" | openssl dgst -binary -sha256 -hmac "$SK" \
+            | od -An -vtx1 | sed 's/[ \n]//g' | sed 'N;s/\n//')
+          docker login -u "${{ env.SWR_REGION }}@$AK" -p "$LOGIN_KEY" "$SWR_HOST"
+          echo "swr_host=$SWR_HOST" >> "$GITHUB_OUTPUT"
+
+      - name: Build + push imagenes
+        id: meta
+        env:
+          SWR_HOST: ${{ steps.swr_login.outputs.swr_host }}
+        run: |
+          SHA_TAG=$(git rev-parse --short HEAD)
+          echo "sha_tag=$SHA_TAG" >> "$GITHUB_OUTPUT"
+
+          # API
+          docker build \
+            -t "$SWR_HOST/${{ env.SWR_ORG }}/analyst-api:$SHA_TAG" \
+            -t "$SWR_HOST/${{ env.SWR_ORG }}/analyst-api:latest" \
+            .
+          docker push "$SWR_HOST/${{ env.SWR_ORG }}/analyst-api:$SHA_TAG"
+          docker push "$SWR_HOST/${{ env.SWR_ORG }}/analyst-api:latest"
+
+          # Chatbot
+          docker build \
+            -f chatbot/Dockerfile \
+            -t "$SWR_HOST/${{ env.SWR_ORG }}/analyst-chatbot:$SHA_TAG" \
+            -t "$SWR_HOST/${{ env.SWR_ORG }}/analyst-chatbot:latest" \
+            .
+          docker push "$SWR_HOST/${{ env.SWR_ORG }}/analyst-chatbot:$SHA_TAG"
+          docker push "$SWR_HOST/${{ env.SWR_ORG }}/analyst-chatbot:latest"
+
+      - name: Mirror imagenes de terceros
+        env:
+          SWR_HOST: ${{ steps.swr_login.outputs.swr_host }}
+        run: |
+          sh scripts/mirror-images.sh "$SWR_HOST" "${{ env.SWR_ORG }}"
+
+  # ---- Deploy (push a main o dispatch) ----
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.HW_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.HW_SECRET_KEY }}
+      TF_VAR_access_key: ${{ secrets.HW_ACCESS_KEY }}
+      TF_VAR_secret_key: ${{ secrets.HW_SECRET_KEY }}
+      TF_VAR_maas_api_key: ${{ secrets.MAAS_API_KEY }}
+      TF_VAR_litellm_master_key: ${{ secrets.LITELLM_MASTER_KEY }}
+      TF_VAR_image_tag: ${{ needs.build.outputs.sha_tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform init
+        working-directory: terraform
+        run: |
+          terraform init -backend-config="bucket=${{ vars.TF_BUCKET }}" \
+            -backend-config="region=${{ env.SWR_REGION }}" \
+            -backend-config="endpoint=https://obs.${{ env.SWR_REGION }}.myhuaweicloud.com" \
+            -backend-config="skip_region_validation=true" \
+            -backend-config="skip_credentials_validation=true" \
+            -backend-config="skip_metadata_api_check=true" \
+            -backend-config="skip_requesting_account_id=true"
+
+      - name: Fase 1 — Infraestructura Huawei Cloud (CCE, VPC, SWR)
+        working-directory: terraform
+        run: |
+          terraform apply -auto-approve -no-color \
+            -target=huaweicloud_vpc.agent \
+            -target=huaweicloud_vpc_subnet.agent \
+            -target=huaweicloud_networking_secgroup.agent \
+            -target=huaweicloud_networking_secgroup_rule.ingress_vpc \
+            -target=huaweicloud_networking_secgroup_rule.egress_all \
+            -target=huaweicloud_vpc_eip.cce_master \
+            -target=huaweicloud_cce_cluster.agent \
+            -target=huaweicloud_cce_node_pool.agent \
+            -target=huaweicloud_swr_organization.agent \
+            -target=huaweicloud_swr_repository.api \
+            -target=huaweicloud_swr_repository.chatbot \
+            -target=random_password.node_pool \
+            -target=local_file.kubeconfig
+
+      - name: Fase 2 — Recursos Kubernetes (manifests, secrets, configmaps)
+        working-directory: terraform
+        run: terraform apply -auto-approve -no-color
+
+      - name: Terraform refresh (EIPs reales)
+        working-directory: terraform
+        run: terraform refresh -no-color
+
+      - name: Endpoints
+        working-directory: terraform
+        run: terraform output

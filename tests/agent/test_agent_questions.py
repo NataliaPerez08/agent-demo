@@ -1,6 +1,5 @@
 import pytest
 
-
 QUESTIONS = [
     "¿Cuanto revenue hubo en julio?",
     "¿Cuales fueron los 5 clientes con mas revenue?",

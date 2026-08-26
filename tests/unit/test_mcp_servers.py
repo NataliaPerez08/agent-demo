@@ -6,8 +6,6 @@ analytics_explorer: tools probadas via call_tool con pool mockeado.
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 
 class _FakeAsyncCM:
     """Async context manager que devuelve un valor fijo."""

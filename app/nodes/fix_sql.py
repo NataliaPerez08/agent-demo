@@ -3,7 +3,6 @@ import re
 
 from app.infrastructure.llm import ainvoke_with_usage, get_llm
 
-
 MAX_RETRIES = 2
 
 
@@ -91,7 +90,7 @@ async def fix_sql(state):
         or "error desconocido"
     )
 
-    llm = get_llm()
+    llm = get_llm(model=state.get("model"))
 
     prompt = f"""
 ESQUEMA DISPONIBLE:

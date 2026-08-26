@@ -19,7 +19,6 @@ import uuid
 
 from mcp.server.fastmcp import FastMCP
 
-
 # Holder del grafo: se setea desde el lifespan de FastAPI.
 _graph = None
 

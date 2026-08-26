@@ -8,9 +8,7 @@ Probado in-process (sin red ni Docker):
 """
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
-
-import pytest
+from unittest.mock import AsyncMock
 
 
 def test_mcp_server_builds():
@@ -21,7 +19,6 @@ def test_mcp_server_builds():
 
 
 def test_ask_analytics_tool_registered():
-    import asyncio
 
     from app.api.mcp_server import create_mcp_server
 
@@ -37,9 +34,8 @@ def test_ask_analytics_tool_registered():
 
 
 def test_ask_analytics_graph_not_ready():
-    import asyncio
 
-    from app.api.mcp_server import create_mcp_server, get_graph, set_graph
+    from app.api.mcp_server import create_mcp_server, set_graph
 
     set_graph(None)
     server = create_mcp_server()
@@ -53,7 +49,6 @@ def test_ask_analytics_graph_not_ready():
 
 
 def test_ask_analytics_with_mock_graph():
-    import asyncio
 
     from app.api.mcp_server import create_mcp_server, set_graph
 
@@ -88,7 +83,6 @@ def test_ask_analytics_with_mock_graph():
 
 
 def test_ask_analytics_no_sql_in_response():
-    import asyncio
 
     from app.api.mcp_server import create_mcp_server, set_graph
 
@@ -114,7 +108,6 @@ def test_ask_analytics_no_sql_in_response():
 
 
 def test_ask_analytics_handles_graph_exception():
-    import asyncio
 
     from app.api.mcp_server import create_mcp_server, set_graph
 

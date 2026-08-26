@@ -20,19 +20,18 @@ async def test_audit_insert_and_read(agent_db_ready):
 
     await log_query(entry)
 
-    async with agent_db_ready.connection() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute(
-                """
+    async with agent_db_ready.connection() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
                 SELECT user_id, question, successful, row_count
                 FROM analytics_query_log
                 WHERE thread_id = %s
                 ORDER BY created_at DESC
                 LIMIT 1
                 """,
-                ("audit-test-thread",),
-            )
-            row = await cur.fetchone()
+            ("audit-test-thread",),
+        )
+        row = await cur.fetchone()
 
     assert row is not None
     assert row[0] == "audit-test-user"
@@ -58,17 +57,16 @@ async def test_audit_logs_failure(agent_db_ready):
 
     await log_query(entry)
 
-    async with agent_db_ready.connection() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute(
-                """
+    async with agent_db_ready.connection() as conn, conn.cursor() as cur:
+        await cur.execute(
+            """
                 SELECT successful, error, retry_count
                 FROM analytics_query_log
                 WHERE thread_id = %s
                 """,
-                ("audit-test-thread-fail",),
-            )
-            row = await cur.fetchone()
+            ("audit-test-thread-fail",),
+        )
+        row = await cur.fetchone()
 
     assert row is not None
     assert row[0] is False

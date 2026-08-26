@@ -7,12 +7,12 @@ output "cce_cluster_id" {
 
 output "cce_master_eip" {
   description = "EIP del master del CCE"
-  value       = huaweicloud_eip_address.cce_master.public_ip
+  value       = huaweicloud_vpc_eip.cce_master.address
 }
 
 output "api_eip" {
   description = "EIP publico del API (via ELB)"
-  value       = huaweicloud_eip_address.api.address
+  value       = huaweicloud_vpc_eip.api.address
 }
 
 output "chatbot_eip" {
@@ -27,22 +27,22 @@ output "litellm_eip" {
 
 output "swr_api_repository" {
   description = "Repositorio SWR de la imagen API"
-  value       = "${huaweicloud_swr_repository.api.domain}/${var.swr_org}/${huaweicloud_swr_repository.api.name}"
+  value       = "${var.swr_org}/analyst-api"
 }
 
 output "swr_chatbot_repository" {
   description = "Repositorio SWR de la imagen chatbot"
-  value       = "${huaweicloud_swr_repository.chatbot.domain}/${var.swr_org}/${huaweicloud_swr_repository.chatbot.name}"
+  value       = "${var.swr_org}/analyst-chatbot"
 }
 
 output "namespace" {
   description = "Namespace de Kubernetes"
-  value       = kubernetes_namespace.agent.metadata[0].name
+  value       = var.namespace
 }
 
 output "api_endpoint" {
   description = "Endpoint del API (via ELB)"
-  value       = "http://${huaweicloud_eip_address.api.address}:8000"
+  value       = "http://${huaweicloud_vpc_eip.api.address}:8000"
 }
 
 output "chatbot_endpoint" {
@@ -57,5 +57,5 @@ output "litellm_endpoint" {
 
 output "health_check" {
   description = "Health check del API"
-  value       = "curl http://${huaweicloud_eip_address.api.address}:8000/health"
+  value       = "curl http://${huaweicloud_vpc_eip.api.address}:8000/health"
 }

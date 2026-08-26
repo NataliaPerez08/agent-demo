@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: litellm-config
-  namespace: data-analyst-agent
+  namespace: ${namespace}
 data:
   config.yaml: |
     model_list:
@@ -29,88 +29,7 @@ data:
           api_base: http://ollama:11434
 
     litellm_settings:
-      # glm-5.2 via MaaS: drop_params descarta params no soportados.
       drop_params: true
 
     general_settings:
       master_key: os.environ/LITELLM_MASTER_KEY
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: agent-db-init
-  namespace: data-analyst-agent
-data:
-  001_audit.sql: |
-    BEGIN;
-
-    CREATE TABLE IF NOT EXISTS analytics_query_log (
-        id BIGSERIAL PRIMARY KEY,
-
-        request_id VARCHAR(100),
-
-        user_id VARCHAR(100) NOT NULL,
-        thread_id VARCHAR(100) NOT NULL,
-
-        question TEXT NOT NULL,
-        generated_sql TEXT,
-
-        successful BOOLEAN NOT NULL DEFAULT FALSE,
-        error TEXT,
-
-        execution_ms INTEGER NOT NULL DEFAULT 0,
-        row_count INTEGER NOT NULL DEFAULT 0,
-
-        model VARCHAR(100),
-        retry_count INTEGER NOT NULL DEFAULT 0,
-
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_audit_log_user_created
-        ON analytics_query_log(user_id, created_at);
-
-    CREATE INDEX IF NOT EXISTS idx_audit_log_thread
-        ON analytics_query_log(thread_id);
-
-    CREATE INDEX IF NOT EXISTS idx_audit_log_created_at
-        ON analytics_query_log(created_at);
-
-    CREATE INDEX IF NOT EXISTS idx_audit_log_request_id
-        ON analytics_query_log(request_id);
-
-    COMMIT;
-  002_dashboards.sql: |
-    BEGIN;
-
-    CREATE TABLE IF NOT EXISTS dashboards (
-        id BIGSERIAL PRIMARY KEY,
-        name VARCHAR(200) NOT NULL,
-        description TEXT,
-        user_id VARCHAR(100) NOT NULL DEFAULT 'anon',
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_dashboards_user
-        ON dashboards(user_id);
-
-    CREATE TABLE IF NOT EXISTS dashboard_widgets (
-        id BIGSERIAL PRIMARY KEY,
-        dashboard_id BIGINT NOT NULL
-            REFERENCES dashboards(id) ON DELETE CASCADE,
-        title VARCHAR(200) NOT NULL,
-        question TEXT NOT NULL,
-        chart_type VARCHAR(50),
-        chart_config JSONB,
-        position INTEGER NOT NULL DEFAULT 0,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_widgets_dashboard
-        ON dashboard_widgets(dashboard_id);
-
-    CREATE INDEX IF NOT EXISTS idx_widgets_position
-        ON dashboard_widgets(dashboard_id, position);
-
-    COMMIT;

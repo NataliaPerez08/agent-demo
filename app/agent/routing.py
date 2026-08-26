@@ -1,6 +1,5 @@
 from app.agent.state import AnalystState
 
-
 MAX_RETRIES = 2
 
 
@@ -16,7 +15,7 @@ SQL_KEYWORDS = {
     "producto", "product", "sql", "query", "ingreso", "ticket",
     "pais", "country", "segmento", "segment", "julio", "junio",
     "comparar", "compare", "tendencia", "trend", "top", "mejor",
-    "revenue", "promedio", "average", "total", "suma", "sum",
+    "promedio", "average", "total", "suma", "sum",
     "ordenes", "orders", "lineas",
 }
 

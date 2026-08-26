@@ -1,10 +1,9 @@
 from contextlib import asynccontextmanager
 
-from psycopg_pool import AsyncConnectionPool
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from psycopg_pool import AsyncConnectionPool
 
 from app.config import settings
-
 
 analytics_pool = AsyncConnectionPool(
     conninfo=settings.analytics_database_url,

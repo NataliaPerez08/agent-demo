@@ -16,7 +16,6 @@ from psycopg_pool import AsyncConnectionPool
 
 from app.config import settings
 
-
 SAMPLE_LIMIT = 20
 STATEMENT_TIMEOUT_MS = 5000
 
@@ -117,7 +116,7 @@ def create_server() -> FastMCP:
                     f"SET LOCAL statement_timeout = {STATEMENT_TIMEOUT_MS}"
                 )
                 await cur.execute(
-                    'SELECT * FROM "%s" LIMIT %s' % (table.replace('"', ""), n)
+                    'SELECT * FROM "{}" LIMIT {}'.format(table.replace('"', ""), n)
                 )
                 cols = [d[0] for d in cur.description]
                 rows = await cur.fetchall()

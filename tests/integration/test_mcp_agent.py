@@ -98,8 +98,8 @@ async def test_agent_mcp_question_with_tools(full_stack):
 @pytest.mark.agent
 async def test_ask_analytics_mcp_server_tool(full_stack):
     """La tool ask_analytics del servidor MCP del agente funciona."""
-    from app.api.mcp_server import create_mcp_server, set_graph
     from app.agent.graph import build_graph
+    from app.api.mcp_server import create_mcp_server, set_graph
 
     graph = build_graph()
     set_graph(graph)

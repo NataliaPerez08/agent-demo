@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: litellm-db
-  namespace: data-analyst-agent
+  namespace: ${namespace}
 spec:
   selector:
     app: litellm-db
@@ -14,7 +14,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: litellm-db
-  namespace: data-analyst-agent
+  namespace: ${namespace}
 spec:
   serviceName: litellm-db
   replicas: 1
@@ -28,7 +28,7 @@ spec:
     spec:
       containers:
         - name: postgres
-          image: swr.la-north-2.myhuaweicloud.com/langchain-test/postgres:16
+          image: ${postgres_image}
           ports:
             - containerPort: 5432
           env:
@@ -54,7 +54,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: litellm-redis
-  namespace: data-analyst-agent
+  namespace: ${namespace}
 spec:
   selector:
     app: litellm-redis
@@ -66,7 +66,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: litellm-redis
-  namespace: data-analyst-agent
+  namespace: ${namespace}
 spec:
   replicas: 1
   selector:
@@ -79,7 +79,7 @@ spec:
     spec:
       containers:
         - name: redis
-          image: swr.la-north-2.myhuaweicloud.com/langchain-test/redis:7
+          image: ${redis_image}
           ports:
             - containerPort: 6379
           readinessProbe:

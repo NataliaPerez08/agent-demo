@@ -1,0 +1,19 @@
+# Copiar a backend.hcl y rellenar. NO commitear backend.hcl (esta en .gitignore).
+# El bucket OBS debe existir previamente (crear via consola o hcloud).
+#
+#   terraform init -backend-config=backend.hcl
+#
+# Notas OBS:
+#   - NO usar force_path_style (OBS exige virtual-hosted: <bucket>.obs.<region>...).
+#   - skip_requesting_account_id evita la llamada a STS de AWS (no existe en OBS).
+
+bucket                      = "mi-bucket-tfstate"
+key                         = "analyst-agent/terraform.tfstate"
+region                      = "la-north-2"
+endpoint                    = "https://obs.la-north-2.myhuaweicloud.com"
+access_key                  = "TU_ACCESS_KEY"
+secret_key                  = "TU_SECRET_KEY"
+skip_region_validation      = true
+skip_credentials_validation = true
+skip_metadata_api_check     = true
+skip_requesting_account_id  = true

@@ -2,7 +2,6 @@ import pytest
 
 from app.nodes.validate_sql import validate_sql
 
-
 VALID_CASES = [
     "SELECT id FROM customers LIMIT 10;",
     "WITH x AS (SELECT 1) SELECT * FROM x;",
