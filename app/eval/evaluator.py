@@ -11,7 +11,6 @@ from app.eval.metrics import (
     extract_tables,
 )
 
-
 DATASET_PATH = Path(__file__).resolve().parents[2] / "eval" / "dataset.yaml"
 
 

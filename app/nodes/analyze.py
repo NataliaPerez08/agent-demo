@@ -2,7 +2,6 @@ import json
 
 from app.infrastructure.llm import ainvoke_with_usage, get_llm
 
-
 SYSTEM_PROMPT = """
 Eres un analista de datos empresariales.
 
@@ -33,7 +32,7 @@ async def analyze_results(state):
 
         return {"analysis": "La consulta no devolvio resultados."}
 
-    llm = get_llm()
+    llm = get_llm(model=state.get("model"))
 
     payload = json.dumps(
         results,

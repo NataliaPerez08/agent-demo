@@ -3,9 +3,8 @@ import pytest
 
 @pytest.mark.agent
 async def test_eval_runs_and_reports(full_stack):
-    from app.eval.evaluator import format_report, run_dataset, summarize
-
     from app.agent.graph import build_graph
+    from app.eval.evaluator import format_report, run_dataset, summarize
 
     # Sin checkpointer: evaluacion fresh por caso (thread_id unico igual).
     graph = build_graph()
@@ -31,9 +30,8 @@ async def test_eval_runs_and_reports(full_stack):
 @pytest.mark.agent
 async def test_eval_simple_revenue_matches(full_stack):
     """El caso mas simple debe acertar resultado y tablas."""
-    from app.eval.evaluator import evaluate_case, load_dataset
-
     from app.agent.graph import build_graph
+    from app.eval.evaluator import evaluate_case, load_dataset
 
     graph = build_graph()
 

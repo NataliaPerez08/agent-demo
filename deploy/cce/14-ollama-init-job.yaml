@@ -1,0 +1,31 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ollama-init
+  namespace: ${namespace}
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: Never
+      imagePullSecrets:
+        - name: swr-pull-secret
+      containers:
+        - name: ollama-init
+          image: ${ollama_image}
+          env:
+            - name: OLLAMA_HOST
+              value: http://ollama:11434
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo ">> esperando a que ollama este listo..."
+              until ollama list >/dev/null 2>&1; do sleep 2; done
+              echo ">> descargando modelos..."
+              ollama pull qwen2.5:1.5b
+              ollama pull qwen2.5:7b
+              if ! ollama list | grep -q 'qwen2.5:1.5b'; then
+                echo "!! ERROR: qwen2.5:1.5b no aparece en ollama list"
+                exit 1
+              fi
+              echo ">> modelos listos y verificados"

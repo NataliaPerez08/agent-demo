@@ -2,3 +2,24 @@ __pycache__/
 *.pyc
 *.pyo
 .venv/
+.chainlit/
+
+# Secrets — nunca commitear claves reales.
+.env
+.env.local
+deploy/cce/.env
+
+# Terraform — state y temporales.
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/*.tfplan
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfvars
+terraform/backend.hcl
+terraform/.kubeconfig
+*.tfstate.backup
+
+# Temporal / test artifacts
+.files/

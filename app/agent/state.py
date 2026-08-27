@@ -8,7 +8,13 @@ class AnalystState(TypedDict, total=False):
     thread_id: str
     user_id: str
 
+    model: str
+
     schema_context: str
+
+    question_type: str
+
+    messages: list[Any]
 
     generated_sql: str
 

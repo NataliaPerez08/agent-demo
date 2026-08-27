@@ -1,2 +1,6 @@
+# Dependencias de desarrollo. Incluye las de produccion para que un
+# entorno de tests (venv/CI) nunca quede sin `mcp`/`langchain-mcp-adapters`.
+-r requirements.txt
+
 pytest>=8
 pytest-asyncio>=0.23

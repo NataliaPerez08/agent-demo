@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-glossary
+  namespace: ${namespace}
+spec:
+  selector:
+    app: mcp-glossary
+  ports:
+    - port: 8100
+      targetPort: 8100
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-glossary
+  namespace: ${namespace}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcp-glossary
+  template:
+    metadata:
+      labels:
+        app: mcp-glossary
+    spec:
+      imagePullSecrets:
+        - name: swr-pull-secret
+      containers:
+        - name: mcp-glossary
+          image: ${api_image}
+          imagePullPolicy: Always
+          command: ["python", "-m", "mcp_servers.servers.business_glossary"]
+          ports:
+            - containerPort: 8100
+          readinessProbe:
+            tcpSocket:
+              port: 8100
+            initialDelaySeconds: 5
+            periodSeconds: 5

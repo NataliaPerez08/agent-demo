@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-redis
+  namespace: ${namespace}
+spec:
+  selector:
+    app: app-redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-redis
+  namespace: ${namespace}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app-redis
+  template:
+    metadata:
+      labels:
+        app: app-redis
+    spec:
+      imagePullSecrets:
+        - name: swr-pull-secret
+      containers:
+        - name: redis
+          image: ${redis_image}
+          ports:
+            - containerPort: 6379
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 3
+            periodSeconds: 5

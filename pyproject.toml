@@ -1,0 +1,9 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+# BLE001: blind except — fail-open intencional en Redis/audit/observability
+# S110:   try-except-pass — mismo patron fail-open
+# SIM117: nested with — combinar cambia semantica dentro de try/except
+ignore = ["BLE001", "S110", "SIM117"]

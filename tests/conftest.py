@@ -15,7 +15,6 @@ import urllib.request
 
 import pytest
 
-
 # Alias de LiteLLM -> tag de Ollama.
 OLLAMA_TAG_BY_ALIAS = {
     "analyst-local": "qwen2.5:7b",
@@ -25,23 +24,25 @@ OLLAMA_TAG_BY_ALIAS = {
 OLLAMA_HOST_DEFAULT = "http://localhost:11434"
 
 
-async def _can_connect() -> bool:
-    from app.infrastructure.postgres import analytics_pool
+async def _can_connect(url: str) -> bool:
+    """Probe con una conexion efimera (no toca el pool global).
+
+    Usar el pool global aqui abriria/cerraria la misma instancia que luego
+    usan las fixtures, provocando PoolClosed al reutilizarla.
+    """
+    from psycopg import AsyncConnection
 
     try:
-        await analytics_pool.open()
-        async with analytics_pool.connection() as conn:
+        conn = await AsyncConnection.connect(url)
+        try:
             async with conn.cursor() as cur:
                 await cur.execute("SELECT 1")
                 await cur.fetchone()
+        finally:
+            await conn.close()
         return True
     except Exception:
         return False
-    finally:
-        try:
-            await analytics_pool.close()
-        except Exception:
-            pass
 
 
 def _local_model_ready() -> bool:
@@ -90,7 +91,9 @@ def _llm_ready() -> bool:
 @pytest.fixture
 async def analytics_pool_ready():
     """Abre el pool de analytics y hace skip si la DB no esta disponible."""
-    if not await _can_connect():
+    from app.config import settings
+
+    if not await _can_connect(settings.analytics_database_url):
         pytest.skip("analytics DB unavailable (levantar docker compose)")
 
     from app.infrastructure.postgres import analytics_pool
@@ -103,22 +106,9 @@ async def analytics_pool_ready():
 
 
 async def _can_connect_agent() -> bool:
-    from app.infrastructure.postgres import agent_pool
+    from app.config import settings
 
-    try:
-        await agent_pool.open()
-        async with agent_pool.connection() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute("SELECT 1")
-                await cur.fetchone()
-        return True
-    except Exception:
-        return False
-    finally:
-        try:
-            await agent_pool.close()
-        except Exception:
-            pass
+    return await _can_connect(settings.agent_database_url)
 
 
 @pytest.fixture
@@ -146,7 +136,7 @@ async def full_stack():
             pytest.skip("modelo local no cargado (levantar ollama + ollama-init)")
         pytest.skip("OPENAI_API_KEY no configurada (dummy detectado)")
 
-    from app.infrastructure.postgres import open_database, close_database
+    from app.infrastructure.postgres import close_database, open_database
 
     try:
         await open_database()

@@ -1,0 +1,93 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: litellm-db
+  namespace: ${namespace}
+spec:
+  selector:
+    app: litellm-db
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: litellm-db
+  namespace: ${namespace}
+spec:
+  serviceName: litellm-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: litellm-db
+  template:
+    metadata:
+      labels:
+        app: litellm-db
+    spec:
+      imagePullSecrets:
+        - name: swr-pull-secret
+      containers:
+        - name: postgres
+          image: ${postgres_image}
+          ports:
+            - containerPort: 5432
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          envFrom:
+            - secretRef:
+                name: litellm-db-credentials
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "litellm", "-d", "litellm"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: litellm-db-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: litellm-redis
+  namespace: ${namespace}
+spec:
+  selector:
+    app: litellm-redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: litellm-redis
+  namespace: ${namespace}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: litellm-redis
+  template:
+    metadata:
+      labels:
+        app: litellm-redis
+    spec:
+      imagePullSecrets:
+        - name: swr-pull-secret
+      containers:
+        - name: redis
+          image: ${redis_image}
+          ports:
+            - containerPort: 6379
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 3
+            periodSeconds: 5

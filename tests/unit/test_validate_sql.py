@@ -2,11 +2,15 @@ import pytest
 
 from app.nodes.validate_sql import validate_sql
 
-
 VALID_CASES = [
     "SELECT id FROM customers LIMIT 10;",
     "WITH x AS (SELECT 1) SELECT * FROM x;",
     "SELECT c.name, SUM(o.total) FROM customers c JOIN orders o ON o.customer_id = c.id GROUP BY c.name;",
+    "SELECT * FROM completed_orders LIMIT 5;",
+    "SELECT * FROM customer_revenue LIMIT 5;",
+    "SELECT * FROM product_sales LIMIT 5;",
+    "SELECT * FROM order_items LIMIT 5;",
+    "SELECT * FROM products LIMIT 5;",
 ]
 
 INVALID_CASES = [
@@ -21,6 +25,9 @@ INVALID_CASES = [
     ("SELECT * FROM information_schema.tables;", "information_schema"),
     ("SELECT * FROM pg_catalog.pg_tables;", "pg_catalog"),
     ("SELECT pg_sleep(5);", "pg_sleep"),
+    ("SELECT * FROM secret_table;", "no permitida"),
+    ("SELECT * FROM users;", "no permitida"),
+    ("SELECT * FROM pg_shadow;", "no permitida"),
 ]
 
 

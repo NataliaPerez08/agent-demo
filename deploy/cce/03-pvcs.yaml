@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: app-agent-db-data
+  namespace: ${namespace}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: csi-disk
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: app-analytics-db-data
+  namespace: ${namespace}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: csi-disk
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: litellm-db-data
+  namespace: ${namespace}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: csi-disk
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-models
+  namespace: ${namespace}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: csi-disk
+  resources:
+    requests:
+      storage: 20Gi

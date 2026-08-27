@@ -1,0 +1,58 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-postgres-agent
+  namespace: ${namespace}
+spec:
+  selector:
+    app: app-postgres-agent
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: app-postgres-agent
+  namespace: ${namespace}
+spec:
+  serviceName: app-postgres-agent
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app-postgres-agent
+  template:
+    metadata:
+      labels:
+        app: app-postgres-agent
+    spec:
+      imagePullSecrets:
+        - name: swr-pull-secret
+      containers:
+        - name: postgres
+          image: ${postgres_image}
+          ports:
+            - containerPort: 5432
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          envFrom:
+            - secretRef:
+                name: app-postgres-agent-credentials
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: init-sql
+              mountPath: /docker-entrypoint-initdb.d
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "agent", "-d", "agent"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: app-agent-db-data
+        - name: init-sql
+          configMap:
+            name: agent-db-init

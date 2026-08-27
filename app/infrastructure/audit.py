@@ -1,6 +1,5 @@
 from app.infrastructure.postgres import agent_pool
 
-
 INSERT_AUDIT_SQL = """
 INSERT INTO analytics_query_log (
     request_id,
@@ -30,26 +29,24 @@ async def log_query(entry: dict) -> None:
 
     try:
 
-        async with agent_pool.connection() as conn:
+        async with agent_pool.connection() as conn, conn.cursor() as cursor:
 
-            async with conn.cursor() as cursor:
-
-                await cursor.execute(
-                    INSERT_AUDIT_SQL,
-                    (
-                        entry.get("request_id"),
-                        entry.get("user_id"),
-                        entry.get("thread_id"),
-                        entry.get("question"),
-                        entry.get("generated_sql"),
-                        bool(entry.get("successful", False)),
-                        entry.get("error"),
-                        int(entry.get("execution_ms", 0)),
-                        int(entry.get("row_count", 0)),
-                        entry.get("model"),
-                        int(entry.get("retry_count", 0)),
-                    ),
-                )
+            await cursor.execute(
+                INSERT_AUDIT_SQL,
+                (
+                    entry.get("request_id"),
+                    entry.get("user_id"),
+                    entry.get("thread_id"),
+                    entry.get("question"),
+                    entry.get("generated_sql"),
+                    bool(entry.get("successful", False)),
+                    entry.get("error"),
+                    int(entry.get("execution_ms", 0)),
+                    int(entry.get("row_count", 0)),
+                    entry.get("model"),
+                    int(entry.get("retry_count", 0)),
+                ),
+            )
 
     except Exception:
         pass

@@ -1,7 +1,7 @@
-# app/nodes/generate_sql.py
+import json
+import re
 
 from app.infrastructure.llm import ainvoke_with_usage, get_llm
-
 
 SYSTEM_PROMPT = """
 Eres un experto en PostgreSQL y análisis de datos.
@@ -14,26 +14,82 @@ REGLAS OBLIGATORIAS:
 2. La consulta final debe ser SELECT o WITH ... SELECT.
 3. Nunca uses INSERT, UPDATE, DELETE, DROP, ALTER, CREATE,
    TRUNCATE, GRANT, REVOKE, COPY o CALL.
-4. Usa únicamente tablas y columnas presentes en el esquema proporcionado.
+4. Usa únicamente las tablas y columnas presentes en el esquema.
 5. Usa las relaciones indicadas en el esquema.
 6. Para revenue, considera únicamente órdenes completed.
 7. Evita SELECT *.
 8. Incluye LIMIT 100 salvo que la consulta sea una agregación
    que naturalmente produzca pocas filas.
 9. No inventes tablas ni columnas.
-10. Devuelve únicamente SQL válido.
-11. No uses Markdown.
-12. No incluyas explicaciones.
 
-Si la pregunta no puede responderse con el esquema disponible,
-devuelve exactamente:
+FORMATO DE RESPUESTA:
 
-CANNOT_ANSWER
+Debes responder SIEMPRE en formato JSON con esta estructura exacta:
+
+{
+  "can_answer": true,
+  "sql": "SELECT ...",
+  "reason": null
+}
+
+Si la pregunta no puede responderse con el esquema disponible:
+
+{
+  "can_answer": false,
+  "sql": null,
+  "reason": "El esquema no contiene información sobre ..."
+}
+
+No uses Markdown. No incluyas texto fuera del JSON.
 """
 
 
+def _parse_json_response(raw: str) -> dict:
+    """Extrae el JSON de la respuesta del LLM de forma tolerante.
+
+    Maneja:
+    - JSON puro
+    - JSON envuelto en ```json ... ```
+    - JSON con texto antes/después
+    """
+
+    text = raw.strip()
+
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```$", "", text).strip()
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    match = re.search(r"\{[\s\S]*\}", text)
+    if match:
+        try:
+            return json.loads(match.group(0))
+        except json.JSONDecodeError:
+            pass
+
+    return {"can_answer": True, "sql": raw.strip(), "reason": None}
+
+
+def _strip_markdown(sql: str) -> str:
+
+    if sql and sql.startswith("```"):
+        sql = (
+            sql.replace("```sql", "")
+            .replace("```SQL", "")
+            .replace("```", "")
+            .strip()
+        )
+
+    return (sql or "").strip()
+
+
 async def generate_sql(state):
-    llm = get_llm()
+
+    llm = get_llm(model=state.get("model"))
 
     prompt = f"""
 ESQUEMA DISPONIBLE:
@@ -44,7 +100,7 @@ PREGUNTA DEL USUARIO:
 
 {state["question"]}
 
-Genera la consulta PostgreSQL.
+Genera la consulta PostgreSQL en formato JSON.
 """
 
     response = await ainvoke_with_usage(
@@ -61,15 +117,14 @@ Genera la consulta PostgreSQL.
         ]
     )
 
-    sql = response.strip()
+    parsed = _parse_json_response(response)
 
-    if sql.startswith("```"):
-        sql = (
-            sql.replace("```sql", "")
-            .replace("```SQL", "")
-            .replace("```", "")
-            .strip()
-        )
+    if not parsed.get("can_answer", True):
+        return {
+            "generated_sql": "CANNOT_ANSWER",
+        }
+
+    sql = _strip_markdown(parsed.get("sql", ""))
 
     return {
         "generated_sql": sql,

@@ -18,6 +18,25 @@ business_rules:
   average_order_value:
     description: >
       Revenue dividido entre número de órdenes completed.
+      Fórmula: SUM(orders.total WHERE status='completed') / COUNT(orders WHERE status='completed').
+
+  new_customers:
+    description: >
+      Clientes dados de alta (created_at) dentro de un período específico.
+      No depende del status de las órdenes; se basa únicamente
+      en customers.created_at.
+
+  units_sold:
+    description: >
+      Unidades vendidas totalizando order_items.quantity
+      exclusivamente para órdenes completed.
+      Fórmula: SUM(order_items.quantity) JOIN orders WHERE status='completed'.
+
+  product_revenue:
+    description: >
+      Ingreso por producto totalizando order_items.quantity * order_items.unit_price
+      exclusivamente para órdenes completed.
+      Fórmula: SUM(order_items.quantity * order_items.unit_price) JOIN orders WHERE status='completed'.
 
 tables:
 

@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: litellm-config
+  namespace: ${namespace}
+data:
+  config.yaml: |
+    model_list:
+      - model_name: analyst-fast
+        litellm_params:
+          model: openai/glm-5.2
+          api_base: https://api-ap-southeast-1.modelarts-maas.com/openai/v1
+          api_key: os.environ/MAAS_API_KEY
+
+      - model_name: analyst-smart
+        litellm_params:
+          model: openai/glm-5.2
+          api_base: https://api-ap-southeast-1.modelarts-maas.com/openai/v1
+          api_key: os.environ/MAAS_API_KEY
+
+      - model_name: analyst-local
+        litellm_params:
+          model: ollama/qwen2.5:7b
+          api_base: http://ollama:11434
+
+      - model_name: analyst-local-fast
+        litellm_params:
+          model: ollama/qwen2.5:1.5b
+          api_base: http://ollama:11434
+
+    litellm_settings:
+      drop_params: true
+
+    general_settings:
+      master_key: os.environ/LITELLM_MASTER_KEY
