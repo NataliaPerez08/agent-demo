@@ -30,6 +30,16 @@ class ChartConfig(BaseModel):
     columns: list[str] | None = None
 
 
+class ChartConfig(BaseModel):
+
+    type: str
+    title: str
+    x: str | None = None
+    y: str | None = None
+    series: list[str] | None = None
+    columns: list[str] | None = None
+
+
 class ChatResponse(BaseModel):
 
     thread_id: str

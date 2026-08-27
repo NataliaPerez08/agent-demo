@@ -747,3 +747,10 @@ nix develop
 - **CCE**: manifests Kubernetes para Huawei Cloud CCE ✅.
 
 Ver `action_plan.md` y `git log` para el histórico por etapa.
+El desarrollo sigue `action_plan.md`. Estado:
+
+- **Fases 1–18** completadas (MVP + conversacional + confiabilidad).
+- **Etapa D** en curso (rama `etapa-d`): export CSV/Excel + charts ✅.
+  Pendientes: métricas, RAG, reportes programados, auth empresarial.
+
+Ver `git log` para el histórico por etapa.

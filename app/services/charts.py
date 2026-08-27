@@ -61,6 +61,7 @@ def suggest_chart(rows: list[dict], question: str = "") -> dict | None:
         return None
 
     numeric, temporal, categorical = _classify_columns(rows)
+    # Excluir columnas identificadoras de las metricas candidatas.
     numeric = [c for c in numeric if not _looks_like_id(c)]
     columns = list(rows[0].keys())
     n = len(rows)

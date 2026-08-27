@@ -25,3 +25,6 @@ langchain-mcp-adapters
 # Export & dashboards
 pandas
 openpyxl
+pandas
+openpyxl
+matplotlib
