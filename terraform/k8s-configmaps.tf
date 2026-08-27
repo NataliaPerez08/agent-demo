@@ -1,5 +1,5 @@
 resource "kubernetes_config_map_v1" "agent_db_init" {
-  for_each = local.k8sReady ? { "default" = {} } : {}
+  for_each = { for k in ["default"] : k => {} if local._ready }
   metadata {
     name      = "agent-db-init"
     namespace = var.namespace
@@ -14,7 +14,7 @@ resource "kubernetes_config_map_v1" "agent_db_init" {
 }
 
 resource "kubernetes_config_map_v1" "analytics_db_init" {
-  for_each = local.k8sReady ? { "default" = {} } : {}
+  for_each = { for k in ["default"] : k => {} if local._ready }
   metadata {
     name      = "analytics-db-init"
     namespace = var.namespace

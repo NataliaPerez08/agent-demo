@@ -26,6 +26,8 @@ spec:
       labels:
         app: api
     spec:
+      imagePullSecrets:
+        - name: swr-pull-secret
       containers:
         - name: api
           image: ${api_image}

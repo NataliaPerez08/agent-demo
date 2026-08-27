@@ -11,7 +11,7 @@ image_tag  = "latest"
 
 # ---- CCE ----
 cce_cluster_name    = "analyst-agent"
-cce_cluster_version = "v1.28"
+cce_cluster_version = "v1.32"
 cce_flavor          = "s6.large.2"
 node_flavor         = "s6.large.2"
 node_count          = 2

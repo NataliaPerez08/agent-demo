@@ -26,6 +26,8 @@ spec:
       labels:
         app: litellm-db
     spec:
+      imagePullSecrets:
+        - name: swr-pull-secret
       containers:
         - name: postgres
           image: ${postgres_image}
@@ -77,6 +79,8 @@ spec:
       labels:
         app: litellm-redis
     spec:
+      imagePullSecrets:
+        - name: swr-pull-secret
       containers:
         - name: redis
           image: ${redis_image}

@@ -26,6 +26,8 @@ spec:
       labels:
         app: app-postgres-agent
     spec:
+      imagePullSecrets:
+        - name: swr-pull-secret
       containers:
         - name: postgres
           image: ${postgres_image}

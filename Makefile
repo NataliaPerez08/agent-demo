@@ -155,7 +155,7 @@ TF_ENV = AWS_ACCESS_KEY_ID=$${AWS_ACCESS_KEY_ID:-$$HW_ACCESS_KEY} \
 # Fase 1: infraestructura Huawei Cloud (VPC, CCE, SWR, EIP).
 # Fase 2: recursos Kubernetes (manifests, secrets, configmaps) — requiere cluster CCE existente.
 # Requiere HW_ACCESS_KEY, HW_SECRET_KEY en el entorno (TF_BUCKET tiene default).
-deploy: image mirror-images
+deploy:
 	@echo ">> terraform init (image_tag=$(IMAGE_TAG))..."
 	cd terraform && $(TF_ENV) terraform init -force-copy \
 		-backend-config="bucket=$(TF_BUCKET)" \
@@ -165,7 +165,14 @@ deploy: image mirror-images
 		-backend-config="skip_credentials_validation=true" \
 		-backend-config="skip_metadata_api_check=true" \
 		-backend-config="skip_requesting_account_id=true"
-	@echo ">> fase 1: infraestructura Huawei Cloud (CCE, VPC, SWR)..."
+	@echo ">> limpiando estado previo (si existe)..."
+	-cd terraform && $(TF_ENV) terraform destroy -auto-approve 2>/dev/null
+	@echo ">> fase 1a: SWR organization + repos..."
+	cd terraform && $(TF_ENV) terraform apply -auto-approve \
+		-target=huaweicloud_swr_organization.agent \
+		-target=huaweicloud_swr_repository.api \
+		-target=huaweicloud_swr_repository.chatbot
+	@echo ">> fase 1b: infraestructura Huawei Cloud (CCE, VPC, EIP)..."
 	cd terraform && $(TF_ENV) terraform apply -auto-approve \
 		-target=huaweicloud_vpc.agent \
 		-target=huaweicloud_vpc_subnet.agent \
@@ -175,13 +182,14 @@ deploy: image mirror-images
 		-target=huaweicloud_vpc_eip.cce_master \
 		-target=huaweicloud_cce_cluster.agent \
 		-target=huaweicloud_cce_node_pool.agent \
-		-target=huaweicloud_swr_organization.agent \
-		-target=huaweicloud_swr_repository.api \
-		-target=huaweicloud_swr_repository.chatbot \
 		-target=random_password.node_pool \
 		-target=local_file.kubeconfig \
 		-var="image_tag=$(IMAGE_TAG)"
-	@echo ">> fase 2: recursos Kubernetes (manifests, secrets, configmaps)..."
+	@echo ">> fase 2: build + push imagenes..."
+	$(MAKE) image-build
+	$(MAKE) image-push
+	$(MAKE) mirror-images
+	@echo ">> fase 3: recursos Kubernetes (manifests, secrets, configmaps)..."
 	cd terraform && $(TF_ENV) terraform apply -auto-approve -var="image_tag=$(IMAGE_TAG)"
 
 # Legacy: aplica manifiestos deploy/cce/ con kubectl (fuente alternativa).
@@ -252,13 +260,9 @@ clean-images:
 clean-tf:
 	@test -n "$$HW_ACCESS_KEY" && test -n "$$HW_SECRET_KEY" || \
 		{ echo "!! set HW_ACCESS_KEY y HW_SECRET_KEY"; exit 1; }
-	@echo ">> eliminando subnet..."
-	$(TF_ENV) terraform -chdir=terraform destroy -auto-approve \
-		-target=huaweicloud_vpc_subnet.agent
-	@echo ">> eliminando VPC..."
-	$(TF_ENV) terraform -chdir=terraform destroy -auto-approve \
-		-target=huaweicloud_vpc.agent
-	@echo ">> recursos eliminados (VPC + subnet)"
+	@echo ">> destruyendo todos los recursos Terraform..."
+	$(TF_ENV) terraform -chdir=terraform destroy -auto-approve
+	@echo ">> recursos Terraform eliminados"
 
 clean-all: clean clean-images clean-tf
 	@echo ">> limpieza completa"

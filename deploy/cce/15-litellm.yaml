@@ -25,6 +25,8 @@ spec:
       labels:
         app: litellm
     spec:
+      imagePullSecrets:
+        - name: swr-pull-secret
       containers:
         - name: litellm
           image: ${litellm_image}

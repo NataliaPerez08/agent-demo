@@ -2,6 +2,7 @@
 resource "huaweicloud_cce_cluster" "agent" {
   name                   = var.cce_cluster_name
   flavor_id              = var.cce_flavor
+  cluster_version        = var.cce_cluster_version
   vpc_id                 = huaweicloud_vpc.agent.id
   subnet_id              = huaweicloud_vpc_subnet.agent.id
   container_network_type = "overlay_l2"
@@ -11,6 +12,10 @@ resource "huaweicloud_cce_cluster" "agent" {
   tags = {
     project = "analyst-agent"
   }
+
+  lifecycle {
+    ignore_changes = [agency_name]
+  }
 }
 
 # ---- Node Pool ----
@@ -19,6 +24,7 @@ resource "huaweicloud_cce_node_pool" "agent" {
   name               = "pool-agent"
   flavor_id          = var.node_flavor
   initial_node_count = var.node_count
+  os                 = var.node_os
   password           = "Terraform123!"  # cambiar en produccion
 
   root_volume {

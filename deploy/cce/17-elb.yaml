@@ -4,7 +4,6 @@ metadata:
   name: api-elb
   namespace: ${namespace}
   annotations:
-    # CCE: auto-crea un ELB publico con EIP (no requiere ELB ID previo).
     kubernetes.io/elb.class: union
     kubernetes.io/elb.autocreate: |
       {

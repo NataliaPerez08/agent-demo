@@ -25,6 +25,8 @@ spec:
       labels:
         app: mcp-explorer
     spec:
+      imagePullSecrets:
+        - name: swr-pull-secret
       containers:
         - name: mcp-explorer
           image: ${api_image}

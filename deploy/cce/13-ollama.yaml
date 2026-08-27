@@ -25,6 +25,8 @@ spec:
       labels:
         app: ollama
     spec:
+      imagePullSecrets:
+        - name: swr-pull-secret
       containers:
         - name: ollama
           image: ${ollama_image}

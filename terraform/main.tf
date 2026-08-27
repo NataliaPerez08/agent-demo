@@ -5,13 +5,13 @@ provider "huaweicloud" {
 }
 
 locals {
-  _cce = try(huaweicloud_cce_cluster.agent, null)
-  k8sReady = local._cce != null && try(local._cce.status, "") == "ACTIVE"
+  _cce      = try(huaweicloud_cce_cluster.agent, null)
+  _cce_status = try(huaweicloud_cce_cluster.agent.status, "")
+  k8sReady  = local._cce_status == "ACTIVE" || local._cce_status == "Available" || local._cce_status == "Available"
 }
 
 # Kubernetes provider: solo se configura si el cluster CCE existe y está ACTIVE.
 provider "kubernetes" {
-  host  = local.k8sReady ? local._cce.endpoint : ""
-  token = local.k8sReady ? local._cce.kube_config_raw : ""
-  insecure = local.k8sReady
+  config_path    = local.k8sReady ? local_file.kubeconfig.filename : ""
+  config_context = local.k8sReady ? "externalTLSVerify" : ""
 }

@@ -4,17 +4,8 @@ metadata:
   name: chatbot-elb
   namespace: ${namespace}
   annotations:
+    kubernetes.io/elb.id: "${elb_id}"
     kubernetes.io/elb.class: union
-    kubernetes.io/elb.autocreate: |
-      {
-        "type": "public",
-        "name": "analyst-chatbot-elb",
-        "bandwidth_name": "analyst-chatbot-bw",
-        "bandwidth_chargemode": "bandwidth",
-        "bandwidth_size": 5,
-        "bandwidth_sharetype": "PER",
-        "eip_type": "5_bgp"
-      }
     kubernetes.io/elb.health-check-flag: "on"
     kubernetes.io/elb.health-check-option: '{"protocol":"HTTP","path":"/health","delay":"5","timeout":"3","max_retries":"3"}'
 spec:

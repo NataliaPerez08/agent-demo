@@ -11,17 +11,17 @@ output "cce_master_eip" {
 }
 
 output "api_eip" {
-  description = "EIP publico del API (via ELB)"
-  value       = huaweicloud_vpc_eip.api.address
+  description = "EIP publico del API (via CCE ELB autocreate)"
+  value       = "Asignado por CCE ELB autocreate"
 }
 
 output "chatbot_eip" {
-  description = "EIP publico del Chatbot (via ELB)"
+  description = "EIP publico del Chatbot (via CCE ELB autocreate)"
   value       = "Asignado por CCE ELB autocreate"
 }
 
 output "litellm_eip" {
-  description = "EIP publico de LiteLLM (via ELB)"
+  description = "EIP publico de LiteLLM (via CCE ELB autocreate)"
   value       = "Asignado por CCE ELB autocreate"
 }
 
@@ -42,20 +42,25 @@ output "namespace" {
 
 output "api_endpoint" {
   description = "Endpoint del API (via ELB)"
-  value       = "http://${huaweicloud_vpc_eip.api.address}:8000"
+  value       = "ver: kubectl get svc api-elb -n ${var.namespace} -o jsonpath='{.status.loadBalancer.ingress[0].ip}'"
 }
 
 output "chatbot_endpoint" {
   description = "Endpoint del Chatbot (via ELB)"
-  value       = "http://<chatbot-elb-ip>:8001 (ver kubectl get svc chatbot-elb)"
+  value       = "ver: kubectl get svc chatbot-elb -n ${var.namespace} -o jsonpath='{.status.loadBalancer.ingress[0].ip}'"
 }
 
 output "litellm_endpoint" {
   description = "Endpoint de LiteLLM (via ELB)"
-  value       = "http://<litellm-elb-ip>:4000 (ver kubectl get svc litellm-elb)"
+  value       = "ver: kubectl get svc litellm-elb -n ${var.namespace} -o jsonpath='{.status.loadBalancer.ingress[0].ip}'"
 }
 
 output "health_check" {
   description = "Health check del API"
-  value       = "curl http://${huaweicloud_vpc_eip.api.address}:8000/health"
+  value       = "ver outputs de api_endpoint + /health"
+}
+
+output "namespace_k8s" {
+  description = "Namespace de Kubernetes"
+  value       = var.namespace
 }

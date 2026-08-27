@@ -25,6 +25,8 @@ spec:
       labels:
         app: chatbot
     spec:
+      imagePullSecrets:
+        - name: swr-pull-secret
       containers:
         - name: chatbot
           image: ${chatbot_image}

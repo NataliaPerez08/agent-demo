@@ -28,5 +28,6 @@ locals {
     ollama_image   = local.ollama_image
     litellm_image  = local.litellm_image
     api_replicas   = var.api_replicas
+    elb_id         = "a0cda89e-d220-4dc7-acb8-12e1b0411146"
   }
 }

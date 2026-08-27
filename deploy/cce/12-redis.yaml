@@ -25,6 +25,8 @@ spec:
       labels:
         app: app-redis
     spec:
+      imagePullSecrets:
+        - name: swr-pull-secret
       containers:
         - name: redis
           image: ${redis_image}

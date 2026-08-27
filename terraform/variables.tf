@@ -40,7 +40,7 @@ variable "cce_cluster_name" {
 variable "cce_cluster_version" {
   description = "Version de Kubernetes"
   type        = string
-  default     = "v1.28"
+  default     = "v1.32"
 }
 
 variable "cce_flavor" {
@@ -65,6 +65,12 @@ variable "node_disk_size" {
   description = "Tamano del disco del nodo (GB)"
   type        = number
   default     = 50
+}
+
+variable "node_os" {
+  description = "Sistema operativo de los nodos (Ubuntu o EulerOS)"
+  type        = string
+  default     = "Huawei Cloud EulerOS 2.0"
 }
 
 # ---- Networking ----

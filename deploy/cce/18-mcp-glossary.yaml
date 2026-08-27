@@ -25,6 +25,8 @@ spec:
       labels:
         app: mcp-glossary
     spec:
+      imagePullSecrets:
+        - name: swr-pull-secret
       containers:
         - name: mcp-glossary
           image: ${api_image}
